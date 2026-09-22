@@ -2,17 +2,8 @@
 
 import { redirect } from "next/navigation";
 
+import type { AuthActionState } from "@/app/auth/state";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-
-export type AuthActionState = {
-  status: "idle" | "error" | "success";
-  message: string;
-};
-
-export const initialAuthState: AuthActionState = {
-  status: "idle",
-  message: "",
-};
 
 function readCredentials(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();

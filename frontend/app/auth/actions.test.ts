@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
-import { initialAuthState, signIn, signOut, signUp } from "./actions";
+import { signIn, signOut, signUp } from "./actions";
+import { initialAuthState } from "./state";
 
 vi.mock("@/lib/supabase/server", () => ({
   createServerSupabaseClient: vi.fn(),

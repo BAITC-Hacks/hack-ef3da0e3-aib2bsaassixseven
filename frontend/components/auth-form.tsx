@@ -2,11 +2,8 @@
 
 import { useActionState, useState } from "react";
 
-import {
-  initialAuthState,
-  signIn,
-  signUp,
-} from "@/app/auth/actions";
+import { signIn, signUp } from "@/app/auth/actions";
+import { initialAuthState } from "@/app/auth/state";
 
 export function AuthForm() {
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
@@ -83,4 +80,3 @@ export function AuthForm() {
     </div>
   );
 }
-
