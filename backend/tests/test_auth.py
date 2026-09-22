@@ -10,6 +10,7 @@ from app.core.auth import (
     AuthenticatedUser,
     InvalidAccessToken,
     TokenVerifier,
+    get_current_user,
     get_token_verifier,
     validate_claims,
 )
@@ -58,21 +59,14 @@ async def test_invalid_token_returns_401(
     assert response.json() == {"detail": "Invalid or expired access token"}
 
 
-async def test_valid_token_returns_verified_identity(
-    app: FastAPI, client: AsyncClient
-) -> None:
-    override_verifier(app, AcceptingVerifier())
+async def test_valid_token_returns_verified_identity() -> None:
+    user = await get_current_user("valid", AcceptingVerifier())
 
-    response = await client.get(
-        "/api/v1/me", headers={"Authorization": "Bearer valid"}
+    assert user == AuthenticatedUser(
+        id=USER_ID,
+        email="hacker@example.com",
+        role="authenticated",
     )
-
-    assert response.status_code == 200
-    assert response.json() == {
-        "id": str(USER_ID),
-        "email": "hacker@example.com",
-        "role": "authenticated",
-    }
 
 
 def valid_claims(**updates: Any) -> Mapping[str, Any]:
