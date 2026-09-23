@@ -1,0 +1,100 @@
+@use "../../../styles/tokens" as tokens;
+
+.auth {
+  margin-top: tokens.$space-8;
+}
+
+.tabs {
+  display: flex;
+  gap: tokens.$space-6;
+  border-bottom: 1px solid #36363d;
+
+  button {
+    padding: tokens.$space-3 0;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: #929198;
+    cursor: pointer;
+
+    &[aria-pressed="true"] {
+      border-bottom-color: #d8c9a5;
+      color: #ffffff;
+    }
+  }
+}
+
+.form {
+  display: grid;
+  gap: tokens.$space-4;
+  margin-top: tokens.$space-6;
+
+  label {
+    display: grid;
+    gap: tokens.$space-2;
+    color: #c7c6ca;
+    font-size: 0.875rem;
+  }
+
+  input {
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0 tokens.$space-3;
+    border: 1px solid #414149;
+    border-radius: tokens.$radius-medium;
+    background: #111115;
+    color: #ffffff;
+  }
+}
+
+.submit,
+.demo button {
+  min-height: 2.75rem;
+  border: 0;
+  border-radius: tokens.$radius-medium;
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.submit {
+  margin-top: tokens.$space-2;
+  background: #d8c9a5;
+  color: #1b1915;
+
+  &:disabled {
+    cursor: wait;
+    opacity: 0.65;
+  }
+}
+
+.message {
+  min-height: 1.25rem;
+  margin: 0;
+  color: #a9a8ae;
+  font-size: 0.8125rem;
+
+  &[data-status="error"] {
+    color: #f0a39c;
+  }
+}
+
+.demo {
+  display: grid;
+  gap: tokens.$space-3;
+  margin-top: tokens.$space-6;
+  padding-top: tokens.$space-5;
+  border-top: 1px solid #36363d;
+
+  p {
+    margin: 0;
+    color: #929198;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+  }
+
+  button {
+    border: 1px solid #484850;
+    background: transparent;
+    color: #f4f3ef;
+  }
+}

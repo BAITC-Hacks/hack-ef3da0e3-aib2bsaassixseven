@@ -1,0 +1,27 @@
+.effect {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 72% at 73% 112%, rgba(80, 91, 116, 0.86), transparent 76%),
+    radial-gradient(ellipse 42% 56% at 1% 100%, rgba(27, 31, 50, 0.8), transparent 82%),
+    #070811;
+}
+
+.effect::after {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(184, 190, 194, 0.16) 0.9px, transparent 0.9px);
+  background-size: 6px 6px;
+  content: "";
+}
+
+.canvas {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+}

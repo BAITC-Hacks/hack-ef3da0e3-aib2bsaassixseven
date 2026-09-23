@@ -1,0 +1,18 @@
+@use "../../styles/tokens" as tokens;
+
+.buttonLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: tokens.$space-2 tokens.$space-4;
+  border-radius: tokens.$radius-medium;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background-color 150ms ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-accent) 88%, black);
+  }
+}

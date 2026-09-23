@@ -1,0 +1,150 @@
+@use "../../../styles/tokens" as tokens;
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: tokens.$space-4;
+  background: rgba(10, 10, 12, 0.72);
+}
+
+.modal {
+  width: min(100%, 42rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: tokens.$radius-medium;
+  background: var(--color-surface);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.18);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: tokens.$space-4;
+  padding: tokens.$space-6;
+  border-bottom: 1px solid var(--color-border);
+
+  h2,
+  p {
+    margin: 0;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    margin-top: tokens.$space-2;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+  }
+}
+
+.close {
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.form {
+  padding: tokens.$space-6;
+}
+
+.columns {
+  display: grid;
+  gap: tokens.$space-4;
+
+  @include tokens.tablet {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.columns label {
+  display: grid;
+  gap: tokens.$space-2;
+  color: #45443f;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.columns input,
+.columns select,
+.columns textarea {
+  width: 100%;
+  min-height: 2.6rem;
+  padding: tokens.$space-2 tokens.$space-3;
+  border: 1px solid var(--color-border);
+  border-radius: tokens.$radius-small;
+  background: #ffffff;
+  font-weight: 400;
+}
+
+.columns textarea {
+  resize: vertical;
+}
+
+.columns input[type="file"] {
+  padding: tokens.$space-3;
+  border-style: dashed;
+  background: #fafaf8;
+}
+
+.columns label > span {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.fullWidth {
+  grid-column: 1 / -1;
+}
+
+.consent {
+  display: flex;
+  align-items: flex-start;
+  gap: tokens.$space-2;
+  margin-top: tokens.$space-5;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.error {
+  margin: tokens.$space-3 0 0;
+  color: var(--color-danger);
+  font-size: 0.8125rem;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: tokens.$space-3;
+  margin-top: tokens.$space-6;
+  padding-top: tokens.$space-5;
+  border-top: 1px solid var(--color-border);
+
+  button {
+    min-height: 2.5rem;
+    padding: 0 tokens.$space-4;
+    border: 1px solid var(--color-border);
+    border-radius: tokens.$radius-small;
+    background: #ffffff;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .primary {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+    color: var(--color-accent-contrast);
+  }
+}
