@@ -7,9 +7,11 @@ an uploaded Russian, Kazakh, or mixed-language meeting recording into a
 speaker-attributed transcript, reviewable summary and action items with source
 timestamps, followed by a human-approved PDF protocol.
 
-The meeting flow is currently documented but not yet implemented. The existing
-code is the authenticated FastAPI, Next.js, and Supabase starter on which the
-MVP will be built.
+The backend accepts owner-scoped uploads, persists meeting jobs and results, and
+coordinates a remote GPU service. Review and PDF routes are implemented in this
+branch; live ML processing requires the separately deployed NVIDIA service.
+Real RU/KK/mixed accuracy and the stage demo remain unverified. See the
+[ML evaluation ledger](docs/technical/ML_EVALUATION.md).
 
 ## Product and architecture documentation
 
@@ -19,7 +21,7 @@ MVP will be built.
 - [Demo flow](docs/product/DEMO_FLOW.md)
 - [Technical requirements](docs/technical/TRD.md)
 - [Architecture](docs/technical/ARCHITECTURE.md)
-- [Planned API contract](docs/technical/API_CONTRACT.md)
+- [Meeting API contract](docs/technical/API_CONTRACT.md)
 - [MVP design specification](docs/superpowers/specs/2026-09-23-meeting-intelligence-mvp-design.md)
 
 A hackathon-ready full-stack starter built with Next.js 16, FastAPI, and
@@ -137,6 +139,15 @@ npx supabase test db
 `supabase db reset` applies the migration and recreates the `profiles` table,
 signup trigger, and owner-only RLS policies.
 
+## Meeting MVP quick check
+
+With a configured GPU service and a consented local recording, upload a WAV, MP3,
+M4A, OGG or WebM file through the authenticated API. Review the transcript
+and evidence, save a full review, approve its revision, then export PDF. The
+frontend meeting screens remain an integration task in this worktree. The
+[demo checklist](docs/product/DEMO_FLOW.md) states the live acceptance gates.
+The synthetic API test uses a fake GPU and does not establish ML accuracy.
+
 ## Test everything
 
 Backend:
@@ -184,18 +195,17 @@ frontend/                 Next.js application and component tests
 supabase/migrations/      PostgreSQL schema and RLS policies
 supabase/tests/           pgTAP database contract tests
 scripts/                  Cross-platform development launchers
-.github/workflows/ci.yml  Backend and frontend CI
+.github/workflows/ci.yml  Backend, frontend and conditional GPU CI
 docs/superpowers/         Architecture spec and implementation plan
 ```
 
 ## Deployment
 
-The deployment notes below describe the existing authenticated starter. The
-planned meeting MVP connects the application backend to the team's NVIDIA
-inference server over an authenticated protected connection. Results persist in
-application-local `data/`; temporary audio on both sides is deleted after result
-persistence is acknowledged, or at temporary-data expiry. No shared filesystem
-between the application and GPU server is required. This flow is not implemented yet.
+The backend connects to the team's NVIDIA inference service through
+`GPU_API_URL` and `GPU_API_TOKEN` over TLS or a protected tunnel. Results persist
+in application-local `DATA_ROOT`; temporary audio on both sides is deleted after
+result persistence is acknowledged, or at temporary-data expiry. The service and
+real-model acceptance remain external deployment dependencies.
 
 Deploy `frontend/` to Vercel (or another Next.js host) and `backend/` to an ASGI
 host. Configure the same Supabase project in both deployments, set

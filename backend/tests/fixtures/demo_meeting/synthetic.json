@@ -1,0 +1,51 @@
+{
+  "fixture_id": "synthetic-contract-v1",
+  "demo_owner_id": "11111111-1111-4111-8111-111111111111",
+  "purpose": "synthetic_contract_test",
+  "recording_sha256": "4d83526d4156d5ab2afdcc8d1e4bdb3df412283a03bcb092bbc4d12149586755",
+  "metadata": {
+    "title": "Синтетический пример для тестов",
+    "meeting_date": "2026-09-23",
+    "timezone": "Asia/Almaty",
+    "participants": [],
+    "recording_notice_confirmed": true,
+    "language_hint": "mixed"
+  },
+  "transcript": {
+    "schema_version": 1,
+    "revision": 0,
+    "speakers": [
+      {"speaker_id": "speaker_1", "display_name": null, "identity_status": "unreviewed"}
+    ],
+    "segments": [
+      {
+        "id": "76424ccb-f8d4-46f2-b7fc-81e888a01775",
+        "start_ms": 100,
+        "end_ms": 900,
+        "speaker_id": "speaker_1",
+        "language": "unknown",
+        "text": "Синтетический тестовый сегмент; запись не содержит речи.",
+        "edited": false
+      }
+    ]
+  },
+  "insights": {
+    "schema_version": 1,
+    "revision": 0,
+    "summary": [
+      {
+        "id": "dc2c962f-8914-4fca-932d-5fbbcc4933cb",
+        "text": "Синтетический тестовый итог, не результат распознавания.",
+        "evidence": [
+          {"segment_id": "76424ccb-f8d4-46f2-b7fc-81e888a01775", "start_ms": 100, "end_ms": 900}
+        ]
+      }
+    ],
+    "action_items": []
+  },
+  "model_versions": {
+    "asr": "synthetic-contract@1",
+    "diarization": "synthetic-contract@1",
+    "analysis": "synthetic-contract@1"
+  }
+}

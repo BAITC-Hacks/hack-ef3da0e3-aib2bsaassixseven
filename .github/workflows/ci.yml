@@ -47,3 +47,31 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
+
+  gpu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Detect GPU package
+        id: gpu_package
+        run: |
+          if [ -f gpu/pyproject.toml ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-python@v7
+        if: steps.gpu_package.outputs.available == 'true'
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v10
+        if: steps.gpu_package.outputs.available == 'true'
+        with:
+          enable-cache: true
+          cache-dependency-glob: gpu/uv.lock
+      - run: uv sync --directory gpu --locked --all-groups
+        if: steps.gpu_package.outputs.available == 'true'
+      - run: uv run --directory gpu pytest -q
+        if: steps.gpu_package.outputs.available == 'true'
+      - run: uv run --directory gpu ruff check .
+        if: steps.gpu_package.outputs.available == 'true'
+      - run: uv run --directory gpu pyright
+        if: steps.gpu_package.outputs.available == 'true'

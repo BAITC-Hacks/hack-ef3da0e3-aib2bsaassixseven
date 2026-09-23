@@ -1,8 +1,8 @@
 # Browser recording branch handoff
 
-Branch: `codex/browser-meeting-recording`, based on `main` at `10d65ec`.
+Branch: `codex/browser-meeting-recording`, originally based on `main` at `10d65ec`. The later P0 backend merge from `main` at `cb01eae` is included in this branch.
 
-This branch implements the browser tab recorder independently while stages 4–5 build the meeting UI and review flow. Do not merge it into a branch without the P0 meeting creation screen until the final UI connection is made.
+This branch implements the browser tab recorder independently. The P0 backend review and PDF code is now integrated; the meeting creation UI is still being built separately. Do not mark the feature ready for users until the final UI connection is made.
 
 ## Interfaces for the stage 4–5 merge
 
@@ -13,9 +13,8 @@ This branch implements the browser tab recorder independently while stages 4–5
 
 ## Merge checks
 
-1. Resolve likely conflicts in `backend/app/api/routes/meetings.py`, `backend/app/services/artifact_store.py`, and `docs/technical/API_CONTRACT.md` against the stage 4–5 branch without dropping either review/PDF routes or the recording source contract.
-2. Render the upload/record switch on the real creation screen, and ensure changing modes during capture disposes tracks. Wire `onCreated` into the existing `queued`/`processing` flow.
-3. Run frontend Vitest, lint, typecheck, build; backend pytest, Ruff, Pyright after the merge.
-4. On desktop Chrome or Edge, record a short permitted web call with two voices. Listen to the WebM for remote audio and microphone, then submit it and complete review and PDF export. Record the OS, browser version, and result in the PR.
+1. Render the upload/record switch on the real creation screen, and ensure changing modes during capture disposes tracks. Wire `onCreated` into the existing `queued`/`processing` flow.
+2. Run frontend Vitest, lint, typecheck, build; backend pytest, Ruff, Pyright after that UI integration.
+3. On desktop Chrome or Edge, record a short permitted web call with two voices. Listen to the WebM for remote audio and microphone, then submit it and complete review and PDF export. Record the OS, browser version, and result in the PR.
 
 The automated media tests use fakes and cannot prove that a specific browser/OS supplies an audio track for the selected tab.
