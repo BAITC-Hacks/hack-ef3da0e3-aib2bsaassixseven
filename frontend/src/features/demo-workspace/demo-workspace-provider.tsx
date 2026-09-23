@@ -59,7 +59,9 @@ export function DemoWorkspaceProvider({
   initialProfile: DemoProfile;
   isDemo?: boolean;
 }) {
-  const [meetings, setMeetings] = useState(seededMeetings);
+  const [meetings, setMeetings] = useState<DemoMeeting[]>(() =>
+    isDemo ? seededMeetings : [],
+  );
   const [profile, setProfile] = useState(initialProfile);
   const [isNewMeetingOpen, setIsNewMeetingOpen] = useState(false);
   const timers = useRef<number[]>([]);

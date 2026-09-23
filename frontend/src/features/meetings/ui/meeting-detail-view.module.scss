@@ -544,7 +544,95 @@
   font-size: 0.8rem;
 }
 
+.liveField {
+  display: grid;
+  gap: tokens.$space-2;
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+
+  input,
+  select,
+  textarea {
+    width: 100%;
+    min-height: 2.4rem;
+    padding: tokens.$space-2 tokens.$space-3;
+    border: 1px solid var(--color-border);
+    border-radius: tokens.$radius-small;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.84rem;
+  }
+
+  textarea {
+    resize: vertical;
+  }
+}
+
+.liveEditGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: tokens.$space-4;
+
+  > :first-child,
+  > :nth-last-child(2) {
+    grid-column: 1 / -1;
+  }
+}
+
+.liveTranscriptEdit {
+  display: grid;
+  gap: tokens.$space-3;
+  margin-top: tokens.$space-3;
+}
+
+.speakerRow {
+  display: grid;
+  grid-template-columns: minmax(7rem, 0.5fr) repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: tokens.$space-3;
+  padding: tokens.$space-3 0;
+  border-bottom: 1px solid var(--color-border);
+
+  > span {
+    padding-bottom: tokens.$space-2;
+    font-size: 0.8rem;
+  }
+
+  .liveField {
+    grid-template-columns: 1fr;
+  }
+}
+
+.liveRemove {
+  justify-self: start;
+  padding: tokens.$space-2 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-danger);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.approvalBar .liveApprovalActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-2;
+}
+
+.spokenDeadline {
+  align-self: end;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
 @media (max-width: 48rem) {
+  .liveEditGrid,
+  .speakerRow {
+    grid-template-columns: 1fr;
+  }
+
   .tabToolbar {
     align-items: stretch;
     flex-direction: column;

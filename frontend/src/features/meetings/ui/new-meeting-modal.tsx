@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -8,6 +9,7 @@ import {
   createMeeting as createApiMeeting,
   MeetingApiError,
 } from "@/features/meetings/api/client";
+import { meetingQueryKeys } from "@/features/meetings/api/hooks";
 
 import styles from "./new-meeting-modal.module.scss";
 
@@ -24,6 +26,7 @@ function initialParticipantFields(): ParticipantField[] {
 
 export function NewMeetingModal() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { closeNewMeeting, createMeeting, isDemo, isNewMeetingOpen } = useDemoWorkspace();
   const formRef = useRef<HTMLFormElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -113,6 +116,10 @@ export function NewMeetingModal() {
           source_kind: "uploaded_audio",
         });
         id = meeting.id;
+        void queryClient.invalidateQueries({
+          queryKey: meetingQueryKeys.all,
+          exact: true,
+        });
       }
     } catch (caught) {
       setError(

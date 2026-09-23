@@ -14,6 +14,13 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+For signed-in meetings, set `NEXT_PUBLIC_API_URL` in `frontend/.env.local` to
+the browser-reachable **FastAPI application** origin (for example,
+`http://localhost:8000`). The client adds `/api/v1` automatically. Use the same
+Supabase URL and publishable key as `backend/.env`; the backend must allow the
+frontend's exact origin with `FRONTEND_ORIGIN`. Do not put the NVIDIA service
+address or token in frontend variables.
+
 Choose **Continue in demo mode** on the login page at any time, with or without
 Supabase credentials. The demo covers creating and processing a meeting, reviewing
 the transcript and assignments, approval, sharing/printing, task tracking,
