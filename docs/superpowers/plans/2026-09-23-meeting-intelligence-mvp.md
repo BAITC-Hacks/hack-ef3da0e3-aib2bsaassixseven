@@ -36,7 +36,7 @@
 
 **Файлы:** `docs/superpowers/specs/2026-09-23-meeting-intelligence-mvp-design.md`, `docs/product/PRD.md`, `docs/technical/API_CONTRACT.md`, `docs/technical/ARCHITECTURE.md`.
 
-- [ ] Согласовать `TranscriptV1` и `InsightsV1`: speaker/segment UUID, evidence внутри сегмента, версии моделей и `result_hash`.
+- [ ] Согласовать `TranscriptV1` и `InsightsV1`: стабильные метки `speaker_id`, UUID сегментов, evidence внутри сегмента, версии моделей и `result_hash`.
 - [ ] Устранить расхождение: PRD допускает ответственного вне списка говорящих, а API сейчас хранит только `assignee_speaker_id`. Зафиксировать поле для имени человека/подразделения, не привязанного к голосу.
 - [ ] Согласовать внутренние ответы GPU API, безопасные коды ошибок, повтор `Idempotency-Key`, ACK и TTL; закрепить тестовые JSON-примеры в контракте.
 
@@ -121,7 +121,7 @@
 **Файлы:** создать `backend/app/services/reviews.py`, `backend/app/services/pdf_export.py`, `backend/tests/test_review_export.py`; изменить `backend/app/api/routes/meetings.py`, `backend/pyproject.toml`, `backend/uv.lock`.
 
 - [ ] Реализовать `PUT /review` как полную замену правок с `base_revision`, проверкой всех ссылок и сбросом approval при новой правке.
-- [ ] Реализовать `POST /approve` только для проверенной ревизии с именами всех обнаруженных голосов и корректным evidence; `GET /export.pdf` должен содержать читаемые русские/казахские символы, цитаты, таймкоды и метку `demo_fixture`.
+- [ ] Реализовать `POST /approve` только для проверенной ревизии, где каждый голос назван либо явно обозначен неизвестным, а evidence корректно; `GET /export.pdf` должен содержать читаемые русские/казахские символы, цитаты, таймкоды и метку `demo_fixture`.
 - [ ] Кэшировать PDF по ревизии, исключить выдачу старого кэша при конкурентной правке; ошибка экспорта не отменяет approval.
 
 **Готово, когда:** PDF содержит сохранённые правки, недоступен до approval и после новой правки требует повторного утверждения.
