@@ -131,8 +131,14 @@ def _validate_audio(path: Path, suffix: str) -> None:
                     or stream.getnframes() < 1
                 ):
                     raise ValueError("Empty WAV")
-                if not stream.readframes(1):
-                    raise ValueError("Truncated WAV")
+                frame_size = stream.getnchannels() * stream.getsampwidth()
+                remaining = stream.getnframes()
+                frames_per_chunk = max(1, 64 * 1024 // frame_size)
+                while remaining:
+                    frames = min(remaining, frames_per_chunk)
+                    if len(stream.readframes(frames)) != frames * frame_size:
+                        raise ValueError("Truncated WAV")
+                    remaining -= frames
             return
         except (EOFError, ValueError, wave.Error):
             raise UploadError(415, "unsupported_media_type") from None

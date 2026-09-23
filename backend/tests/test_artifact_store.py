@@ -373,6 +373,40 @@ def test_interrupted_upload_stays_invisible(tmp_path: Path) -> None:
     assert LocalArtifactStore(tmp_path).list_meetings(owner) == []
 
 
+@pytest.mark.parametrize("sync_point", ["meeting_folder", "meetings_parent"])
+def test_post_rename_creation_sync_failure_stays_invisible(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, sync_point: str
+) -> None:
+    owner = uuid4()
+    store = LocalArtifactStore(tmp_path)
+    original = store._sync_directory  # pyright: ignore[reportPrivateUsage]
+    meetings_parent = tmp_path / "users" / str(owner) / "meetings"
+    failed = False
+
+    def fail_after_rename(path: Path) -> None:
+        nonlocal failed
+        folders = list(meetings_parent.iterdir()) if meetings_parent.exists() else []
+        committed = any((folder / "meeting.json").exists() for folder in folders)
+        target = (
+            path.parent == meetings_parent
+            if sync_point == "meeting_folder"
+            else path == meetings_parent
+        )
+        if target and committed and not failed:
+            failed = True
+            raise OSError("synthetic post-rename sync failure")
+        original(path)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "_sync_directory", fail_after_rename)
+        with pytest.raises(OSError, match="post-rename"):
+            store.create_meeting(owner, metadata(), b"synthetic")
+    assert failed
+    restarted = LocalArtifactStore(tmp_path)
+    assert restarted.list_meetings(owner) == []
+    assert not list(meetings_parent.glob("*/meeting.json"))
+
+
 def test_evidence_validation_independent_of_bundle_hash() -> None:
     from app.models.insights import InsightsV1
 

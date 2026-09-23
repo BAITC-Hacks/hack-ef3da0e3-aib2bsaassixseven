@@ -2,6 +2,8 @@
 
 import io
 import json
+import os
+import time
 import wave
 from pathlib import Path
 from uuid import UUID
@@ -265,6 +267,116 @@ async def test_staging_failure_is_503_and_creates_no_meeting(
     result = await upload(client)
     assert result.status_code == 503
     assert result.json()["code"] == "storage_failed"
+    assert store.list_meetings(OWNER) == []
+
+
+async def test_post_rename_sync_failure_is_503_without_visible_meeting(
+    client: AsyncClient, store: LocalArtifactStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original_sync = store._sync_directory  # pyright: ignore[reportPrivateUsage]
+    meetings_parent = store.root / "users" / str(OWNER) / "meetings"
+    failed = False
+
+    def fail_once(path: Path) -> None:
+        nonlocal failed
+        if (
+            path.parent == meetings_parent
+            and (path / "meeting.json").exists()
+            and not failed
+        ):
+            failed = True
+            raise OSError("synthetic post-rename failure")
+        original_sync(path)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "_sync_directory", fail_once)
+        result = await upload(client)
+    assert failed
+    assert result.status_code == 503
+    assert result.json()["code"] == "storage_failed"
+    assert LocalArtifactStore(store.root).list_meetings(OWNER) == []
+
+
+async def test_post_commit_staging_unlink_failure_still_returns_202_and_sweeps(
+    client: AsyncClient, store: LocalArtifactStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original_unlink = Path.unlink
+
+    def fail_staging_unlink(path: Path, missing_ok: bool = False) -> None:
+        if path.suffix == ".upload":
+            raise OSError("synthetic staging cleanup failure")
+        original_unlink(path, missing_ok=missing_ok)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, "unlink", fail_staging_unlink)
+        result = await upload(client)
+    assert result.status_code == 202
+    meeting_id = UUID(result.json()["id"])
+    assert store.read_meeting(OWNER, meeting_id).status == "queued"
+    staged = list((store.root / "uploads").glob("*.upload"))
+    assert len(staged) == 1
+    old = time.time() - 25 * 3600
+    os.utime(staged[0], (old, old))
+    new_staged = store.temporary_upload_path()
+    assert not staged[0].exists()
+    new_staged.unlink()
+
+
+@pytest.mark.parametrize("truncated", ["missing_frames", "partial_frame"])
+async def test_truncated_wav_is_rejected(
+    client: AsyncClient, store: LocalArtifactStore, truncated: str
+) -> None:
+    data = bytearray(wav_bytes())
+    if truncated == "missing_frames":
+        data[4:8] = (36 + 16000).to_bytes(4, "little")
+        data[40:44] = (16000).to_bytes(4, "little")
+    else:
+        data = data[:45]
+    result = await upload(client, content=bytes(data))
+    assert result.status_code == 415
+    assert result.json()["code"] == "unsupported_media_type"
+    assert store.list_meetings(OWNER) == []
+
+
+async def test_oversized_stream_stops_early_and_closes_spool(
+    client: AsyncClient,
+    store: LocalArtifactStore,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tempfile import SpooledTemporaryFile
+
+    import starlette.formparsers as formparsers
+
+    files: list[SpooledTemporaryFile[bytes]] = []
+    continued = False
+
+    def tracked_spool(*args: object, **kwargs: object) -> SpooledTemporaryFile[bytes]:
+        spool: SpooledTemporaryFile[bytes] = SpooledTemporaryFile(max_size=1024)  # noqa: SIM115
+        files.append(spool)
+        return spool
+
+    async def body():  # pyright: ignore[reportUnknownParameterType,reportMissingParameterType]
+        nonlocal continued
+        yield (
+            b'--test-boundary\r\nContent-Disposition: form-data; name="audio"; '
+            b'filename="meeting.wav"\r\nContent-Type: audio/wav\r\n\r\n' + b"x" * 101
+        )
+        continued = True
+        yield b"--test-boundary--\r\n"
+
+    monkeypatch.setattr(uploads, "MAX_AUDIO_BYTES", 100)
+    monkeypatch.setattr(formparsers, "SpooledTemporaryFile", tracked_spool)
+    result = await client.post(
+        "/api/v1/meetings",
+        headers={
+            **HEADERS,
+            "Content-Type": "multipart/form-data; boundary=test-boundary",
+        },
+        content=body(),
+    )
+    assert result.status_code == 413
+    assert not continued
+    assert files and all(item.closed for item in files)
     assert store.list_meetings(OWNER) == []
 
 

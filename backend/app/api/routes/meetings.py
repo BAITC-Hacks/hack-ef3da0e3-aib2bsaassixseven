@@ -4,6 +4,7 @@ import asyncio
 import base64
 import binascii
 import json
+import logging
 import re
 from datetime import datetime
 from typing import Annotated, cast
@@ -26,6 +27,7 @@ from app.services.artifact_store import (
 from app.services.uploads import UploadError, parse_upload, stage_and_validate
 
 router = APIRouter(prefix="/meetings", tags=["meetings"])
+logger = logging.getLogger(__name__)
 
 
 class MeetingPage(BaseModel):
@@ -116,11 +118,20 @@ async def create_meeting(
         finally:
             await audio.close()
         try:
-            return await asyncio.to_thread(
+            meeting = await asyncio.to_thread(
                 store.create_meeting, user.id, metadata, path
             )
-        finally:
+        except BaseException:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                logger.warning("Staging cleanup deferred after failed meeting creation")
+            raise
+        try:
             path.unlink(missing_ok=True)
+        except OSError:
+            logger.warning("Staging cleanup deferred after committed meeting creation")
+        return meeting
     except UploadError as error:
         raise _error(error.status_code, error.code) from error
     except (OSError, ArtifactIntegrityError, UnsafePath) as error:

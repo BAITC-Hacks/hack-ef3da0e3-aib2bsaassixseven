@@ -10,6 +10,8 @@ import io
 import os
 import stat
 import tempfile
+import time
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import BinaryIO
@@ -157,10 +159,35 @@ class LocalArtifactStore:
         """
         staging = self._check(self.root / "uploads")
         self._make_directory(staging)
+        self._sweep_stale_uploads(staging)
         path = self._check(staging / f"{uuid4()}.upload")
         fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
         os.close(fd)
         return path
+
+    def _sweep_stale_uploads(self, staging: Path) -> None:
+        """Best-effort cleanup of private staging files older than 24 hours.
+
+        A failed unlink after a committed upload must not change its HTTP result.
+        Such files remain private and are retried on a subsequent upload.
+        """
+        cutoff = time.time() - 24 * 60 * 60
+        removed = False
+        for path in staging.iterdir():
+            if path.suffix != ".upload":
+                continue
+            try:
+                UUID(path.stem)
+                info = path.lstat()
+                if not stat.S_ISREG(info.st_mode) or info.st_mtime >= cutoff:
+                    continue
+                path.unlink()
+                removed = True
+            except (ValueError, OSError):
+                continue
+        if removed:
+            with suppress(OSError):
+                self._sync_directory(staging)
 
     def create_meeting(
         self,
@@ -228,8 +255,18 @@ class LocalArtifactStore:
             local_cleanup_status="pending",
             jobs=[JobRecord(attempt=1)],
         )
-        self._atomic_write(folder / "meeting.json", record.model_dump_json().encode())
-        self._sync_directory(folder.parent)
+        marker = self._check(folder / "meeting.json")
+        try:
+            self._atomic_write(marker, record.model_dump_json().encode())
+            self._sync_directory(folder.parent)
+        except BaseException:
+            # _atomic_write may have renamed meeting.json before a directory
+            # fsync failed. Remove the visibility marker before reporting a
+            # failed creation, so readers never see an unacknowledged meeting.
+            marker.unlink(missing_ok=True)
+            self._sync_directory(folder)
+            self._sync_directory(folder.parent)
+            raise
         return meeting
 
     def read_record(self, owner_id: UUID, meeting_id: UUID) -> MeetingRecord:
