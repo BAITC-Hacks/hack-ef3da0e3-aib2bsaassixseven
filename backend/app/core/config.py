@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     gpu_api_url: str | None = None
     gpu_api_token: SecretStr | None = None
     gpu_api_timeout_seconds: float = 30.0
+    coordinator_poll_seconds: float = Field(default=2.0, gt=0)
 
 
 @lru_cache
