@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import threading
 from datetime import date
 from pathlib import Path
 from uuid import UUID
@@ -160,6 +161,30 @@ async def test_inconsistent_job_record_does_not_block_other_meeting(
     await CoordinatorRuntime(store, MeetingCoordinator(store, gpu)).tick()
 
     assert store.read_record(OWNER, valid_id).jobs[0].job_id == gpu.job.job_id
+
+
+async def test_runtime_skips_meeting_while_lifecycle_mutation_holds_lock(
+    tmp_path: Path,
+) -> None:
+    store = LocalArtifactStore(tmp_path)
+    meeting_id = create_meeting(store)
+    entered = threading.Event()
+    release = threading.Event()
+
+    def hold_lock() -> None:
+        with store.lifecycle_lock(OWNER, meeting_id):
+            entered.set()
+            assert release.wait(timeout=2)
+
+    holder = asyncio.create_task(asyncio.to_thread(hold_lock))
+    try:
+        assert await asyncio.to_thread(entered.wait, 1)
+        coordinator = RecordingCoordinator()
+        await CoordinatorRuntime(store, coordinator).tick()
+        assert coordinator.calls == []
+    finally:
+        release.set()
+        await holder
 
 
 async def test_corrupt_meeting_does_not_block_other_queued_meeting(

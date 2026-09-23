@@ -68,23 +68,28 @@ class CoordinatorRuntime:
                 self.janitor.sweep()
                 for owner_id, meeting_id in self._meeting_ids():
                     try:
-                        meeting = self.store.read_meeting(owner_id, meeting_id)
+                        with self.store.lifecycle_lock(
+                            owner_id, meeting_id, blocking=False
+                        ) as acquired:
+                            if not acquired:
+                                continue
+                            meeting = self.store.read_meeting(owner_id, meeting_id)
+                            if meeting.status in {"queued", "processing"} or (
+                                meeting.status in {"review_required", "approved"}
+                                and meeting.cleanup_status == "pending"
+                            ):
+                                await self.coordinator.process_once(
+                                    owner_id, meeting_id
+                                )
                     except (
                         MeetingNotFound,
                         ArtifactIntegrityError,
                         UnsafePath,
                         OSError,
+                        CoordinatorStorageError,
                     ):
                         continue
-                    if meeting.status in {"queued", "processing"} or (
-                        meeting.status in {"review_required", "approved"}
-                        and meeting.cleanup_status == "pending"
-                    ):
-                        try:
-                            await self.coordinator.process_once(owner_id, meeting_id)
-                        except CoordinatorStorageError:
-                            continue
-                        except Exception:
-                            logger.error(
-                                "Coordinator step failed for meeting %s", meeting_id
-                            )
+                    except Exception:
+                        logger.error(
+                            "Coordinator step failed for meeting %s", meeting_id
+                        )

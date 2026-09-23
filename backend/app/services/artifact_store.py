@@ -399,16 +399,27 @@ class LocalArtifactStore:
         self._sync_directory(folder)
 
     @contextmanager
-    def lifecycle_lock(self, owner_id: UUID, meeting_id: UUID) -> Generator[None]:
-        """Serialize owner-authorized retry/delete requests across API workers."""
+    def lifecycle_lock(
+        self, owner_id: UUID, meeting_id: UUID, *, blocking: bool = True
+    ) -> Generator[bool]:
+        """Serialize all mutations of a meeting across API workers."""
         self.read_record(owner_id, meeting_id)
         path = self._check(self._folder(owner_id, meeting_id) / ".lifecycle.lock")
-        fd = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        try:
+            fd = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        except FileNotFoundError as error:
+            # A DELETE may have moved the meeting after the authorization read.
+            raise MeetingNotFound() from error
         try:
             if not stat.S_ISREG(os.fstat(fd).st_mode):
                 raise UnsafePath("Non-regular lifecycle lock")
-            fcntl.flock(fd, fcntl.LOCK_EX)
-            yield
+            flags = fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB)
+            try:
+                fcntl.flock(fd, flags)
+            except BlockingIOError:
+                yield False
+            else:
+                yield True
         finally:
             os.close(fd)
 

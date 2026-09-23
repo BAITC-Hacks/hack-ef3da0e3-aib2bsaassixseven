@@ -1,6 +1,8 @@
 """Periodic cleanup of private local files and durable cleanup state."""
 
+import asyncio
 import os
+import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -167,3 +169,32 @@ async def test_unlink_failure_keeps_cleanup_pending_until_next_tick(
     monkeypatch.setattr(store, "delete_upload", real_delete)
     await runtime.tick()
     assert store.read_meeting(OWNER, meeting_id).cleanup_status == "expired"
+
+
+async def test_janitor_waits_for_meeting_mutation_before_expiring_upload(
+    tmp_path: Path,
+) -> None:
+    store = LocalArtifactStore(tmp_path)
+    meeting_id = create_meeting(store)
+    record = store.read_record(OWNER, meeting_id)
+    record.meeting.temporary_expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    store.update_meeting(OWNER, record)
+    entered = threading.Event()
+    release = threading.Event()
+
+    def hold_lock() -> None:
+        with store.lifecycle_lock(OWNER, meeting_id):
+            entered.set()
+            assert release.wait(timeout=5)
+
+    holder = asyncio.create_task(asyncio.to_thread(hold_lock))
+    try:
+        assert await asyncio.to_thread(entered.wait, 1)
+        await CoordinatorRuntime(store, RecordingCoordinator()).tick()
+        assert store.upload_present(OWNER, meeting_id)
+    finally:
+        release.set()
+        await holder
+
+    await CoordinatorRuntime(store, RecordingCoordinator()).tick()
+    assert not store.upload_present(OWNER, meeting_id)

@@ -1,5 +1,6 @@
 """Retry and deletion contract tests with durable local meeting state."""
 
+import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID
@@ -11,7 +12,7 @@ from httpx import AsyncClient
 from app.api.routes.meetings import get_artifact_store
 from app.core.auth import AuthenticatedUser, InvalidAccessToken, get_token_verifier
 from app.models.meeting import Failure, JobRecord, MeetingMetadata
-from app.services.artifact_store import LocalArtifactStore
+from app.services.artifact_store import LocalArtifactStore, MeetingNotFound
 
 OWNER = UUID("11111111-1111-4111-8111-111111111111")
 OTHER = UUID("22222222-2222-4222-8222-222222222222")
@@ -211,3 +212,23 @@ async def test_delete_failure_keeps_meeting_accessible(
     assert result.json()["code"] == "delete_failed"
     still_present = await client.get(f"/api/v1/meetings/{meeting_id}", headers=HEADERS)
     assert still_present.status_code == 200
+
+
+def test_lifecycle_lock_maps_delete_race_to_not_found(
+    store: LocalArtifactStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    meeting_id = meeting(store)
+    original_open = os.open
+
+    def missing_lock(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        flags: int,
+        mode: int = 0o777,
+    ) -> int:
+        if str(path).endswith(".lifecycle.lock"):
+            raise FileNotFoundError
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr("app.services.artifact_store.os.open", missing_lock)
+    with pytest.raises(MeetingNotFound), store.lifecycle_lock(OWNER, meeting_id):
+        pass

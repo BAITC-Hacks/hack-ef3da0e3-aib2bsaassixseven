@@ -112,7 +112,11 @@ class LocalJanitor:
                 shutil.rmtree(entry)
                 _sync_directory(entry.parent)
             return
-        self._expire_upload(owner_id, meeting_id)
+        with self.store.lifecycle_lock(
+            owner_id, meeting_id, blocking=False
+        ) as acquired:
+            if acquired:
+                self._expire_upload(owner_id, meeting_id)
 
     def _expire_upload(self, owner_id: UUID, meeting_id: UUID) -> None:
         record = self.store.read_record(owner_id, meeting_id)
