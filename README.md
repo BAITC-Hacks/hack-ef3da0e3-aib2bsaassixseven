@@ -1,5 +1,7 @@
 # Hackalem
 
+AIB2BSaaSSixSeven hackathon team repository.
+
 A hackathon-ready full-stack starter built with Next.js 16, FastAPI, and
 Supabase. It includes email authentication, a protected dashboard, verified
 JWTs, user-scoped database access, Row Level Security, tests, and CI.
