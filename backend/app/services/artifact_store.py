@@ -172,7 +172,7 @@ class LocalArtifactStore:
         """Best-effort cleanup of private staging files older than 24 hours.
 
         A failed unlink after a committed upload must not change its HTTP result.
-        Such files remain private and are retried on a subsequent upload.
+        Such files remain private and are retried on a later upload or timer tick.
         """
         cutoff = time.time() - 24 * 60 * 60
         removed = False
@@ -191,6 +191,12 @@ class LocalArtifactStore:
         if removed:
             with suppress(OSError):
                 self._sync_directory(staging)
+
+    def sweep_stale_uploads(self) -> None:
+        """Sweep private staging on a timer, even when no new upload arrives."""
+        staging = self._check(self.root / "uploads")
+        if staging.is_dir():
+            self._sweep_stale_uploads(staging)
 
     def create_meeting(
         self,

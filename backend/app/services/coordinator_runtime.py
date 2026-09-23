@@ -12,6 +12,7 @@ from app.services.artifact_store import (
     UnsafePath,
 )
 from app.services.coordinator import CoordinatorStorageError
+from app.services.local_janitor import LocalJanitor
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class CoordinatorRuntime:
     def __init__(self, store: LocalArtifactStore, coordinator: CoordinatorStep) -> None:
         self.store = store
         self.coordinator = coordinator
+        self.janitor = LocalJanitor(store)
         self._tick_lock = asyncio.Lock()
 
     async def run_forever(self, poll_interval: float) -> None:
@@ -63,6 +65,7 @@ class CoordinatorRuntime:
             with self.store.coordinator_lock() as acquired:
                 if not acquired:
                     return
+                self.janitor.sweep()
                 for owner_id, meeting_id in self._meeting_ids():
                     try:
                         meeting = self.store.read_meeting(owner_id, meeting_id)
