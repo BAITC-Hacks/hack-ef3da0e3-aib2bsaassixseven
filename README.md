@@ -1,104 +1,145 @@
-# Tirke Meeting Intelligence
+# Tirke — протокол совещания с проверяемыми поручениями
 
-Hackathon MVP for turning Russian, Kazakh, and mixed-language meeting audio
-into a human-reviewed transcript, summary, assignments, evidence links, and
-PDF protocol.
+Tirke (проект Hackalem) помогает подготовить протокол по готовой записи встречи на русском, казахском или смешанной речи. Целевой сценарий: загрузить аудио или видео, получить транскрипт со спикерами и таймкодами, проверить краткий итог и поручения по цитатам, исправить черновик, утвердить его и скачать PDF. Вывод модели всегда остаётся черновиком: неизвестные ответственный и срок не заполняются догадкой.
 
 ```text
-audio upload → FastAPI coordinator → team NVIDIA inference server
-             → local results in data/ → human review → approved PDF
+Браузер / Next.js → FastAPI → локальный NVIDIA inference API
+                       ↓                    ↓
+                  данные в data/ ← результат модели
+                       ↓
+             проверка человеком → утверждённый PDF
 ```
 
-Meeting content is not sent to external AI providers. Audio is temporary;
-machine results and user corrections are stored on the backend application's
-local disk for the MVP.
+Аудио, видео, транскрипты и выводы модели не отправляются во внешние облачные AI или аналитические сервисы. Существующий Supabase используется для входа и профиля; данные встреч хранятся на диске backend приложения. При загрузке видео FastAPI локально извлекает первую аудиодорожку и передаёт на NVIDIA-сервер только аудио.
 
-## Sources of truth
+## Возможности
 
-- [Product requirements](docs/product/PRD.md)
-- [Technical requirements](docs/technical/TRD.md)
-- [Repository working agreement](AGENTS.md)
-- [Design reference interpretation](docs/design-references/README.md)
+| Возможность | Как устроено |
+| --- | --- |
+| Загрузка | Аудио WAV, MP3, M4A, OGG, WebM и видео MP4, MOV, MKV до 100 MiB. Backend проверяет формат по содержимому и локально извлекает аудиодорожку из видео. |
+| Обработка | Асинхронный конвейер на выделенном NVIDIA-сервере команды: распознавание, разделение голосов и извлечение итогов и поручений. В интерфейсе видны статус и этап обработки. |
+| Проверка | Транскрипт с таймкодами, краткий итог и поручения с цитатами. Пользователь исправляет текст, спикеров, ответственных и сроки, добавляет или удаляет поручения. |
+| Результат | Правки сохраняются в `data/` backend приложения. После утверждения текущей ревизии доступен PDF; новая правка снова требует утверждения. |
+| Доступ | Supabase Auth определяет владельца, а FastAPI проверяет право доступа к каждой встрече и её PDF. Содержимое встреч не хранится в Supabase. |
 
-The PRD and TRD above are copied byte-for-byte from `origin/yernur-backend`.
+NVIDIA inference API и модели запускаются отдельно от этого репозитория по [внутреннему контракту](docs/technical/API_CONTRACT.md). Приложению нужны адрес сервиса и серверный токен; браузер их не получает.
 
-## Repository status
+## Запуск основного сценария
 
-- `frontend/` — Next.js 16 App Router application with strict TypeScript, Sass
-  modules, Supabase authentication, and a complete dashboard/review flow.
-- `backend/` — FastAPI meeting API, local `data/` artifact store, resumable
-  coordinator, review workflow, and PDF export.
-- `supabase/` — existing authentication/profile setup. Meeting content must not
-  be persisted there under the current MVP requirements.
-- `docs/design-references/` — supplied visual references for the later design
-  pass; text in screenshots is not an instruction source.
-
-## Prerequisites
-
-- Node.js 22 or newer and npm
-- Python 3.12 and [uv](https://docs.astral.sh/uv/)
-- Current backend authentication environment values
-
-## Frontend
+Нужны Node.js **22+**, npm, Python **3.12+**, [uv](https://docs.astral.sh/uv/), `ffprobe` и `ffmpeg` в `PATH`. Также нужны проект Supabase Auth и доступный NVIDIA inference API команды. Из корня репозитория:
 
 ```bash
 cp frontend/.env.example frontend/.env.local
-npm --prefix frontend install
-npm --prefix frontend run dev
+cp backend/.env.example backend/.env
+npm --prefix frontend ci
+uv sync --directory backend --locked --all-groups
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+В `frontend/.env.local` задайте реальные `NEXT_PUBLIC_SUPABASE_URL` и `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. В `backend/.env` укажите **тот же** проект через `SUPABASE_URL` и `SUPABASE_PUBLISHABLE_KEY`, а также `GPU_API_URL` и `GPU_API_TOKEN` развёрнутого командой аутентифицированного inference HTTP API. `FRONTEND_ORIGIN` должен совпадать с адресом frontend (по умолчанию `http://localhost:3000`), `NEXT_PUBLIC_API_URL` — указывать на FastAPI (по умолчанию `http://localhost:8000`). Токен GPU хранится только на backend и не помещается в `NEXT_PUBLIC_*`.
 
-The login screen always offers a local demo session, including when Supabase
-is configured. That mode lets reviewers walk through the complete interface
-without external services: dashboard, meeting creation and simulated
-processing, secretary review, approval, sharing/printing, deletion, tasks,
-and profile settings. Demo meeting changes live in browser memory and reset
-when the workspace is reloaded.
-
-With Supabase variables configured, signed-in users upload audio or video to
-the FastAPI meeting API, follow live processing state, review saved results,
-approve minutes, and download the protected PDF. Live inference additionally
-requires the backend-only NVIDIA service settings described below.
-
-## Current backend starter
+Запустите API и frontend в двух терминалах:
 
 ```bash
-cp backend/.env.example backend/.env
-uv sync --directory backend --locked --all-groups
 uv run --directory backend fastapi dev app/main.py --port 8000
 ```
 
-Open [http://localhost:8000/docs](http://localhost:8000/docs). The meeting API
-described in the TRD is not yet implemented.
-
-## Verification
-
-Frontend:
-
 ```bash
-npm --prefix frontend run check
+npm --prefix frontend run dev
 ```
 
-Backend:
+Откройте [http://localhost:3000/login](http://localhost:3000/login), войдите в аккаунт и создайте встречу. Загрузите запись, дождитесь статуса `review_required`, проверьте транскрипт и поручения по цитатам, сохраните правки, утвердите результат и скачайте PDF. Повторное открытие встречи показывает сохранённую версию. API доступен на [http://localhost:8000/docs](http://localhost:8000/docs), проверка состояния — на [http://localhost:8000/health](http://localhost:8000/health).
+
+Backend добавляет к `GPU_API_URL` маршруты `/internal/v1/jobs` и другие пути [контракта](docs/technical/API_CONTRACT.md). Между приложением и NVIDIA-сервером используйте HTTPS или защищённый туннель. Ссылки на Jupyter и SSH не заменяют адрес inference API. Без GPU-настроек сохранённые встречи доступны, а новые ожидают обработки.
+
+`DATA_ROOT=data` означает приватный каталог `backend/data` при таком запуске; для другой рабочей директории задайте абсолютный путь. Не коммитьте `.env`, записи, транскрипты, PDF, веса моделей и реальные персональные данные. Подробности: [backend/README.md](backend/README.md) и [frontend/README.md](frontend/README.md).
+
+## Развёртывание приложения
+
+Ниже — запуск Next.js и FastAPI на одной машине без Docker. Для обработки новых записей отдельно нужен уже работающий NVIDIA inference API команды, реализующий [внутренний контракт](docs/technical/API_CONTRACT.md). Этот репозиторий не развёртывает GPU worker или модель. Внешние AI API для записей не используются.
+
+1. Подготовьте сервер с Node.js 22+, npm, Python 3.12+, `uv`, `ffprobe` и `ffmpeg`. Разместите репозиторий на сервере и выделите постоянный приватный каталог для `DATA_ROOT`, доступный на запись пользователю FastAPI. Сохраняйте его между обновлениями приложения: там находятся результаты, правки, PDF и временное аудио. При резервном копировании исключайте временные загрузки, чтобы не сохранять аудио дольше установленного срока очистки.
+2. Создайте `frontend/.env.local` из `frontend/.env.example` и `backend/.env` из `backend/.env.example`. Настройте адреса **до сборки frontend**, поскольку `NEXT_PUBLIC_*` попадают в клиентскую сборку. Например, при разных HTTPS-адресах сайта и API:
+
+   ```dotenv
+   # frontend/.env.local
+   NEXT_PUBLIC_SITE_URL=https://tirke.example.org
+   NEXT_PUBLIC_API_URL=https://api.tirke.example.org
+   NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+
+   # backend/.env
+   FRONTEND_ORIGIN=https://tirke.example.org
+   SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+   SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+   DATA_ROOT=/path/to/private/persistent/data
+   GPU_API_URL=https://YOUR_INTERNAL_INFERENCE_API
+   GPU_API_TOKEN=YOUR_SERVICE_TOKEN
+   ```
+
+   Используйте один и тот же проект Supabase в обоих файлах. Примените [миграцию профилей](supabase/migrations/20260922000000_create_profiles.sql) к этому проекту и разрешите в настройках Supabase Auth адрес `https://tirke.example.org/auth/confirm` для подтверждения регистрации. `GPU_API_URL` доступен **с машины FastAPI** по HTTPS или защищённому туннелю; токен остаётся только в `backend/.env`. Вариант SSH-туннеля описан в [backend/README.md](backend/README.md#ssh-tunnel-to-the-nvidia-host). `FRONTEND_ORIGIN` — точный origin браузерного сайта без пути и завершающего `/`. URL API должен быть доступен браузеру; клиент сам добавит `/api/v1`.
+3. Установите зависимости и соберите frontend из корня репозитория:
+
+   ```bash
+   npm --prefix frontend ci
+   uv sync --directory backend --locked --no-dev
+   npm --prefix frontend run build
+   ```
+
+4. Запустите **по одному процессу** FastAPI и Next.js под менеджером процессов вашей машины, чтобы они поднимались после перезагрузки. Следующие команды показывают сами процессы; запускайте их из корня репозитория:
+
+   ```bash
+   uv run --directory backend --no-dev fastapi run app/main.py --host 127.0.0.1 --port 8000
+   npm --prefix frontend run start -- --hostname 127.0.0.1 --port 3000
+   ```
+
+   HTTPS reverse proxy направляет адрес сайта на `127.0.0.1:3000`, адрес API — на `127.0.0.1:8000`. Разрешите в прокси загрузку файлов до 100 MiB и не публикуйте `DATA_ROOT` как статические файлы. После изменения `NEXT_PUBLIC_*` пересоберите frontend и перезапустите его; после изменения `backend/.env` перезапустите FastAPI.
+5. Проверьте `https://api.tirke.example.org/health`, затем войдите через сайт и загрузите разрешённую тестовую запись. `health` подтверждает работу приложения, но не готовность GPU worker: успешный реальный сценарий заканчивается статусом `review_required`, проверкой и скачиванием PDF после утверждения. Без настроенного inference API новые встречи не получают результата; демо-режим ниже работает независимо от него.
+
+## Демо без внешних сервисов
+
+Для быстрого просмотра интерфейса достаточно установить frontend-зависимости и запустить `npm --prefix frontend run dev`. На странице входа выберите **Continue in demo mode**: можно пройти создание встречи, имитацию обработки, проверку и утверждение. Демо использует синтетические данные в памяти браузера, не распознаёт выбранный файл и сбрасывается после перезагрузки рабочего пространства. Кнопка Download PDF в демо открывает печать браузера; основной сценарий скачивает PDF с FastAPI. Системные надписи интерфейса сейчас на английском, а содержимое встречи может быть на русском и казахском.
+
+## Основной сценарий и технические границы
+
+1. Авторизованный пользователь отправляет `POST /api/v1/meetings`: файл до **100 MiB** и metadata. Принимаются WAV, MP3, M4A, OGG, WebM, MP4, MOV и MKV; backend проверяет содержимое, а у видео локально извлекает первую аудиодорожку.
+2. FastAPI сохраняет временное аудио и manifest в `DATA_ROOT`, возвращает `202 queued`. Координатор отправляет задачу по ключу `meeting_id:attempt`, отслеживает этапы и может продолжить работу после перезапуска.
+3. При готовности backend проверяет версионированный результат, сегменты и ссылки поручений на доказательства, атомарно сохраняет JSON/TXT и только затем подтверждает приём GPU-сервису. Временные копии удаляются после подтверждения или по сроку хранения; результаты и правки остаются локально.
+4. Пользователь проверяет транскрипт, спикеров, итог и поручения. Для каждого извлечённого поручения сохраняются цитата, таймкод, ID сегмента и метаданные запуска модели. Неустановленные ответственный и срок видны как пустые поля.
+5. После явного утверждения FastAPI формирует PDF из текущей сохранённой ревизии. Новая правка возвращает встречу в `review_required` и делает прежний PDF недействительным.
+
+Публичные статусы: `queued`, `processing`, `review_required`, `approved`, `failed`. Детальный HTTP-контракт, ошибки и внутренний GPU-протокол описаны в [API_CONTRACT.md](docs/technical/API_CONTRACT.md). Веб-клиент не обращается к NVIDIA или файлам `data/` напрямую. Для данных встречи не требуются PostgreSQL, Redis, Docker и объектное хранилище.
+
+## Проверка и воспроизводимость
+
+После установки зависимостей запустите из корня репозитория:
 
 ```bash
+npm --prefix frontend run lint
+npm --prefix frontend run typecheck
+npm --prefix frontend run test
+npm --prefix frontend run build
 uv run --directory backend pytest -q
 uv run --directory backend ruff check .
 uv run --directory backend pyright
 ```
 
-## Project map
+Backend-тесты используют синтетические записи и fake GPU: они проверяют маршруты, права владельца, сохранение, повторы, очистку, проверку и PDF, но **не измеряют** распознавание или диаризацию. Для демонстрации реального AI нужны согласованные записи RU, KK и mixed, развёрнутый NVIDIA worker и ручная проверка результата по [плану ML-оценки](docs/technical/ML_EVALUATION.md). Синтетический fixture нельзя выдавать за вывод модели. [Сценарий показа](docs/product/DEMO_FLOW.md) и [критерии приёмки](docs/product/PRD.md) описывают полный целевой прогон.
+
+## Структура проекта
 
 ```text
-frontend/src/app/          Next.js routes and layouts
-frontend/src/components/   Shared layout, providers, and UI primitives
-frontend/src/features/     Feature UI, demo workspace state, and domain schemas
-frontend/src/lib/          API transport and validated public configuration
-frontend/src/styles/       Sass tokens and mixins
-backend/                   FastAPI application
-docs/product/PRD.md        Canonical product requirements
-docs/technical/TRD.md      Canonical technical requirements
-docs/design-references/    Non-normative visual inputs
-AGENTS.md                  Engineering and privacy rules
+frontend/                 Next.js 16, TypeScript, Sass, TanStack Query, Zod
+backend/app/api/          FastAPI routes и авторизация
+backend/app/services/     загрузка, coordinator, хранение, review и PDF
+backend/tests/            контрактные и интеграционные тесты с fake GPU
+supabase/                 существующий Auth/profile, без данных встреч
+docs/product/             PRD и сценарий демонстрации
+docs/technical/           TRD, архитектура, API-контракт и ML-оценка
+docs/design-references/   визуальные референсы, не требования к поведению
 ```
+
+## Дальнейшее развитие
+
+При развитии продукта команда планирует улучшать качество RU/KK/mixed распознавания на размеченном наборе записей, навигацию по цитатам, повторную обработку с сохранением правок и настройку PDF. Запись на сайте, интеграции с календарями и трекерами, совместная проверка и масштабирование хранения описаны как следующие этапы в [PRD](docs/product/PRD.md).
+
+Источники требований: [PRD](docs/product/PRD.md), [TRD](docs/technical/TRD.md), [архитектура](docs/technical/ARCHITECTURE.md), [правила репозитория](AGENTS.md).
