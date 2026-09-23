@@ -75,20 +75,7 @@ export default function HomePage() {
       </section>
 
       <footer className={styles.footer}>
-        <div className={styles.footerBrand}>
-          <Link href="/">Tirke</Link>
-          <p>Private meeting intelligence for Russian and Kazakh speech.</p>
-        </div>
-        <nav className={styles.footerNavigation} aria-label="Footer navigation">
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/meetings">Meetings</Link>
-          <Link href="/tasks">Tasks</Link>
-          <Link href="/settings">Settings</Link>
-        </nav>
-        <div className={styles.footerMeta}>
-          <span>Local inference · Human approval</span>
-          <span>© 2026 Tirke</span>
-        </div>
+        <p>© 2026 Tirke · Local inference · Human approval</p>
       </footer>
     </main>
   );
