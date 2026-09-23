@@ -3,10 +3,16 @@
 import hashlib
 import json
 from datetime import date
-from typing import Annotated, Self
+from typing import Annotated, Self, cast
 from uuid import UUID
 
-from pydantic import Field, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 from app.models.transcript import (
     NonEmptyText,
@@ -54,6 +60,28 @@ class ActionItem(SummaryItem):
     assignee_name: PersonName | None
     due_date: date | None
     due_date_text: NonEmptyText | None
+
+    @field_validator("due_date", mode="before")
+    @classmethod
+    def iso_due_date(cls, value: object) -> object:
+        if value is None or type(value) is date:
+            return value
+        if (
+            not isinstance(value, str)
+            or len(value) != 10
+            or value[4] != "-"
+            or value[7] != "-"
+        ):
+            raise ValueError("due_date must be an ISO calendar date or null")
+        date.fromisoformat(value)
+        return value
+
+    @field_validator("assignee_name", mode="before")
+    @classmethod
+    def unpadded_assignee_name(cls, value: object) -> object:
+        if isinstance(value, str) and value != value.strip():
+            raise ValueError("assignee_name must not have surrounding whitespace")
+        return value
 
     @model_validator(mode="after")
     def valid_assignee(self) -> Self:
@@ -113,6 +141,32 @@ class ResultBundleV1(VersionedModel):
     insights: InsightsV1
     model_versions: ModelVersions
     result_hash: Sha256
+
+    @model_validator(mode="before")
+    @classmethod
+    def verify_received_hash(cls, value: object) -> object:
+        if not isinstance(value, dict):
+            return value
+        received = cast(dict[str, object], value)
+        # JSON input is hashed untouched. Model/UUID values are supported only
+        # for internal typed construction and have explicit JSON representations.
+        payload: dict[str, object] = {}
+        for key, item in received.items():
+            if key == "result_hash":
+                continue
+            if isinstance(item, BaseModel):
+                payload[key] = item.model_dump(mode="json")
+            elif isinstance(item, UUID):
+                payload[key] = str(item)
+            else:
+                payload[key] = item
+        try:
+            actual_hash = hashlib.sha256(canonical_json(payload)).hexdigest()
+        except (TypeError, ValueError) as error:
+            raise ValueError("Bundle must contain canonical JSON values") from error
+        if actual_hash != received.get("result_hash"):
+            raise ValueError("Result hash mismatch")
+        return received
 
     @model_validator(mode="after")
     def valid_machine_bundle(self) -> Self:

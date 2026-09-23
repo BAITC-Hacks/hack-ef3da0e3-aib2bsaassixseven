@@ -401,3 +401,181 @@ def test_machine_text_bytes_are_not_normalized_before_hashing() -> None:
     assert (
         ResultBundleV1.model_validate(data).transcript.segments[0].text == "  Жақсы.  "
     )
+
+
+def test_manifest_sync_failure_blocks_ack_on_every_retry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    owner = uuid4()
+    store = LocalArtifactStore(tmp_path)
+    meeting = store.create_meeting(owner, metadata(), b"synthetic")
+    result = bundle(meeting.id)
+    folder = tmp_path / "users" / str(owner) / "meetings" / str(meeting.id)
+    original = store._sync_directory  # pyright: ignore[reportPrivateUsage]
+
+    def fail_manifest_sync(path: Path) -> None:
+        if path == folder and (folder / "manifest.json").exists():
+            raise OSError("manifest directory sync failed")
+        original(path)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "_sync_directory", fail_manifest_sync)
+        with pytest.raises(OSError, match="manifest directory"):
+            store.publish_results(owner, meeting.id, result)
+        assert (folder / "manifest.json").exists()
+        with pytest.raises(OSError, match="manifest directory"):
+            store.publish_results(owner, meeting.id, result)
+    assert (
+        store.publish_results(owner, meeting.id, result).result_hash
+        == result.result_hash
+    )
+
+
+def test_identical_artifact_retry_reestablishes_durability(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = LocalArtifactStore(tmp_path)
+    target = tmp_path / "transcript.txt"
+
+    def fail_sync(_path: Path) -> None:
+        raise OSError("directory sync failed")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "_sync_directory", fail_sync)
+        for _ in range(2):
+            with pytest.raises(OSError, match="directory sync"):
+                store._atomic_write(target, b"synthetic", immutable=True)  # pyright: ignore[reportPrivateUsage]
+    assert target.read_bytes() == b"synthetic"
+
+
+def test_archive_ancestor_sync_failure_preserves_originals(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    owner = uuid4()
+    store = LocalArtifactStore(tmp_path)
+    meeting = store.create_meeting(owner, metadata(), b"synthetic")
+    result = bundle(meeting.id)
+    store.publish_results(owner, meeting.id, result)
+    record = store.read_record(owner, meeting.id)
+    record.meeting.status = "failed"
+    store.update_meeting(owner, record)
+    record.meeting.status = "queued"
+    record.meeting.attempt = 2
+    folder = tmp_path / "users" / str(owner) / "meetings" / str(meeting.id)
+    original = store._sync_directory  # pyright: ignore[reportPrivateUsage]
+
+    def fail_archive_parent(path: Path) -> None:
+        if path == folder / "attempts":
+            raise OSError("archive ancestor sync failed")
+        original(path)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "_sync_directory", fail_archive_parent)
+        for _ in range(2):
+            with pytest.raises(OSError, match="archive ancestor"):
+                store.update_meeting(owner, record)
+            assert (folder / "manifest.json").exists()
+            assert (folder / "transcript.json").exists()
+            assert store.read_record(owner, meeting.id).meeting.attempt == 1
+    store.update_meeting(owner, record)
+    assert store.read_record(owner, meeting.id).meeting.attempt == 2
+    assert (folder / "attempts" / "1" / "transcript.json").exists()
+
+
+def test_new_storage_and_owner_ancestors_are_synced(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    synced: list[Path] = []
+    original = LocalArtifactStore._sync_directory  # pyright: ignore[reportPrivateUsage]
+
+    def record_sync(path: Path) -> None:
+        original(path)
+        synced.append(path)
+
+    monkeypatch.setattr(
+        LocalArtifactStore, "_sync_directory", staticmethod(record_sync)
+    )
+    root = tmp_path / "new-parent" / "data"
+    store = LocalArtifactStore(root)
+    owner = uuid4()
+    meeting = store.create_meeting(owner, metadata(), b"synthetic")
+    folder = root / "users" / str(owner) / "meetings" / str(meeting.id)
+    assert {
+        tmp_path,
+        root.parent,
+        root,
+        root / "users",
+        root / "users" / str(owner),
+        folder.parent,
+        folder,
+    } <= set(synced)
+
+
+def action_bundle_data() -> dict[str, object]:
+    result = bundle(uuid4()).model_dump(mode="json")
+    item = result["insights"]["summary"][0]
+    result["insights"]["action_items"] = [
+        {
+            **item,
+            "assignee_speaker_id": None,
+            "assignee_name": "Бухгалтерия",
+            "due_date": "1970-01-01",
+            "due_date_text": None,
+        }
+    ]
+    unsigned = {key: value for key, value in result.items() if key != "result_hash"}
+    result["result_hash"] = hashlib.sha256(
+        json.dumps(
+            unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode()
+    ).hexdigest()
+    return result
+
+
+def test_raw_hash_rejects_fields_that_normalize_to_a_different_signed_value() -> None:
+    for field, value in [("due_date", 0), ("assignee_name", " Бухгалтерия ")]:
+        data = ResultBundleV1.model_validate(action_bundle_data()).model_dump(
+            mode="json"
+        )
+        data["insights"]["action_items"][0][field] = value
+        # Keep the original hash: coerced values must not pass its verification.
+        with pytest.raises(ValidationError, match="hash"):
+            ResultBundleV1.model_validate(data)
+
+
+def test_raw_signed_numeric_date_and_padded_name_are_rejected() -> None:
+    for field, value in [("due_date", 0), ("assignee_name", " Бухгалтерия ")]:
+        data = ResultBundleV1.model_validate(action_bundle_data()).model_dump(
+            mode="json"
+        )
+        data["insights"]["action_items"][0][field] = value
+        unsigned = {key: value for key, value in data.items() if key != "result_hash"}
+        data["result_hash"] = hashlib.sha256(
+            json.dumps(
+                unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            ).encode()
+        ).hexdigest()
+        with pytest.raises(ValidationError, match="due_date|assignee_name"):
+            ResultBundleV1.model_validate(data)
+
+
+def test_failed_directory_creation_sync_cannot_expose_a_meeting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    owner = uuid4()
+    store = LocalArtifactStore(tmp_path)
+    original = store._sync_directory  # pyright: ignore[reportPrivateUsage]
+
+    def fail_owner_ancestor(path: Path) -> None:
+        if path == tmp_path / "users":
+            raise OSError("owner ancestor sync failed")
+        original(path)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "_sync_directory", fail_owner_ancestor)
+        for _ in range(2):
+            with pytest.raises(OSError, match="owner ancestor"):
+                store.create_meeting(owner, metadata(), b"synthetic")
+            assert store.list_meetings(owner) == []
+    meeting = store.create_meeting(owner, metadata(), b"synthetic")
+    assert store.list_meetings(owner)[0].id == meeting.id

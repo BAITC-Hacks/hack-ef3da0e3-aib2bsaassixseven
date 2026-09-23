@@ -53,7 +53,7 @@ class LocalArtifactStore:
         for ancestor in [*reversed(self.root.parents), self.root]:
             if ancestor.is_symlink():
                 raise UnsafePath("Symlink in storage root")
-        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self._make_directory(self.root)
 
     def _check(self, path: Path) -> Path:
         try:
@@ -97,6 +97,25 @@ class LocalArtifactStore:
         finally:
             os.close(fd)
 
+    def _make_directory(self, path: Path) -> None:
+        """Make every ancestor durable, even if a prior mkdir/fsync was interrupted."""
+        self._check(path)
+        path.mkdir(parents=True, exist_ok=True, mode=0o700)
+        # Sync existing ancestors too: existence does not prove a previous sync
+        # succeeded, including when retrying construction of the storage root.
+        for directory in (path, *path.parents):
+            self._sync_directory(directory)
+
+    def _sync_file(self, path: Path) -> None:
+        self._check(path)
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        try:
+            if not stat.S_ISREG(os.fstat(fd).st_mode):
+                raise UnsafePath("Non-regular artifact")
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
     def _atomic_write(
         self, path: Path, data: bytes, *, immutable: bool = False
     ) -> None:
@@ -104,6 +123,8 @@ class LocalArtifactStore:
         if immutable and path.exists():
             if self._read(path) != data:
                 raise ArtifactIntegrityError("Original artifact already exists")
+            self._sync_file(path)
+            self._sync_directory(path.parent)
             return
         fd, name = tempfile.mkstemp(prefix=".pending-", dir=path.parent)
         temporary = Path(name)
@@ -121,6 +142,7 @@ class LocalArtifactStore:
                         raise ArtifactIntegrityError(
                             "Original artifact conflict"
                         ) from None
+                    self._sync_file(path)
             else:
                 os.replace(temporary, path)
             self._sync_directory(path.parent)
@@ -134,7 +156,7 @@ class LocalArtifactStore:
         fails. Client filenames must never be passed into this interface.
         """
         staging = self._check(self.root / "uploads")
-        staging.mkdir(mode=0o700, exist_ok=True)
+        self._make_directory(staging)
         path = self._check(staging / f"{uuid4()}.upload")
         fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
         os.close(fd)
@@ -158,7 +180,7 @@ class LocalArtifactStore:
             raise ValueError("Retention must be positive")
         meeting_id = uuid4()
         folder = self._folder(owner_id, meeting_id)
-        folder.mkdir(parents=True, mode=0o700)
+        self._make_directory(folder)
         now = datetime.now(UTC)
         meeting = Meeting(
             **metadata.model_dump(),
@@ -290,7 +312,7 @@ class LocalArtifactStore:
         """Preserve prior originals before changing attempts; resumable on failure."""
         folder = self._folder(owner_id, old.meeting.id)
         archive = self._check(folder / "attempts" / str(old.meeting.attempt))
-        archive.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self._make_directory(archive)
         self._atomic_write(
             archive / "meeting.json", old.model_dump_json().encode(), immutable=True
         )
@@ -338,6 +360,17 @@ class LocalArtifactStore:
             if manifest.result_hash != bundle.result_hash:
                 raise ArtifactIntegrityError("Result already published")
             self.read_results(owner_id, meeting_id)
+            # A prior link/replace may have succeeded before directory fsync
+            # failed. Verified reads alone never authorize ACK after that failure.
+            for name in (
+                "transcript.json",
+                "insights.json",
+                "transcript.txt",
+                "meeting.json",
+                "manifest.json",
+            ):
+                self._sync_file(folder / name)
+            self._make_directory(folder)
             return manifest
         artifacts = {
             "transcript.json": canonical_json(
