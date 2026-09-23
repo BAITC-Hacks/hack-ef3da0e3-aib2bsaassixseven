@@ -2,7 +2,7 @@
 
 AIB2BSaaSSixSeven hackathon team repository.
 
-Hackalem is a local-first meeting intelligence prototype. Its target MVP turns
+Hackalem is a meeting intelligence prototype with inference on the team's dedicated NVIDIA server and locally stored results. Its target MVP turns
 an uploaded Russian, Kazakh, or mixed-language meeting recording into a
 speaker-attributed transcript, reviewable summary and action items with source
 timestamps, followed by a human-approved PDF protocol.
@@ -191,9 +191,11 @@ docs/superpowers/         Architecture spec and implementation plan
 ## Deployment
 
 The deployment notes below describe the existing authenticated starter. The
-planned meeting MVP is local-first and additionally requires a persistent
-shared `data/` volume plus a worker process; it is not implemented or ready for
-serverless deployment yet.
+planned meeting MVP connects the application backend to the team's NVIDIA
+inference server over an authenticated protected connection. Results persist in
+application-local `data/`; temporary audio on both sides is deleted after result
+persistence is acknowledged, or at temporary-data expiry. No shared filesystem
+between the application and GPU server is required. This flow is not implemented yet.
 
 Deploy `frontend/` to Vercel (or another Next.js host) and `backend/` to an ASGI
 host. Configure the same Supabase project in both deployments, set
