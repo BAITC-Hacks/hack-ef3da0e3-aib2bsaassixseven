@@ -1,0 +1,9 @@
+{
+  "key_facts": [],
+  "decisions": [],
+  "tasks": [],
+  "meeting_at": null,
+  "timezone": "UTC",
+  "llm_model": "qwen3.5-9b",
+  "validation_warnings": []
+}

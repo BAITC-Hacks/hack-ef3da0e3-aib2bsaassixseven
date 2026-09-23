@@ -1,0 +1,18 @@
+{
+  "audio_sha256": "3ebb153fb24e4411400e94a9a92b0ec458c3a8473e51e03cd37d4a34c99dfda6",
+  "pipeline_code_sha256": "eeb6e09e33436347115c9223ca117e60c4d8d31f6abc391521aadd6fd5eac701",
+  "models": {
+    "diarization": {
+      "repo": "pyannote/speaker-diarization-community-1",
+      "sha": "synthetic"
+    },
+    "gigaam-ctc": {
+      "repo": "ai-sage/GigaAM-Multilingual",
+      "sha": "synthetic"
+    },
+    "qwen3.5-9b": {
+      "repo": "Qwen/Qwen3.5-9B",
+      "sha": "synthetic"
+    }
+  }
+}

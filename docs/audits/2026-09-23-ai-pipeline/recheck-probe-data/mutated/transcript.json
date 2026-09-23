@@ -1,0 +1,16 @@
+{
+  "audio_path": "C:\\Users\\Rodnoi\\hackalem\\docs\\audits\\2026-09-23-ai-pipeline\\recheck-probe-data\\audio.mp3",
+  "meeting_at": null,
+  "timezone": "UTC",
+  "participants": [],
+  "asr_model": "gigaam-ctc",
+  "utterances": [
+    {
+      "id": "r00001",
+      "start_ms": 100,
+      "end_ms": 300,
+      "speaker_id": null,
+      "text": "original correction"
+    }
+  ]
+}

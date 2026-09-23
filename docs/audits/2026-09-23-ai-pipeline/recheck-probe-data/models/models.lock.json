@@ -1,0 +1,1 @@
+{"diarization": {"repo": "pyannote/speaker-diarization-community-1", "sha": "synthetic"}, "gigaam-ctc": {"repo": "ai-sage/GigaAM-Multilingual", "sha": "synthetic"}, "qwen3.5-9b": {"repo": "Qwen/Qwen3.5-9B", "sha": "synthetic"}}
