@@ -1,0 +1,51 @@
+{
+  "key_facts": [
+    {
+      "text": "Загрузка цеха — 71 процент",
+      "source_utterance_ids": [
+        "u00001"
+      ],
+      "evidence_quote": "Загрузка цеха — 71 процент.",
+      "needs_review": true
+    }
+  ],
+  "decisions": [
+    {
+      "text": "Срок отчёта перенесён на 2 октября",
+      "source_utterance_ids": [
+        "u00003"
+      ],
+      "evidence_quote": "срок отчёта переносим на 2 октября",
+      "needs_review": true
+    }
+  ],
+  "tasks": [
+    {
+      "action": "Подготовить отчёт",
+      "responsible": "Ерлан",
+      "due_date": "2026-10-02",
+      "due_text": "2 октября",
+      "source_utterance_ids": [
+        "u00002",
+        "u00003"
+      ],
+      "evidence_quote": "подготовьте отчёт",
+      "needs_review": true
+    },
+    {
+      "action": "Проверить договор",
+      "responsible": null,
+      "due_date": null,
+      "due_text": "на следующей неделе",
+      "source_utterance_ids": [
+        "u00004"
+      ],
+      "evidence_quote": "Проверьте договор на следующей неделе.",
+      "needs_review": true
+    }
+  ],
+  "meeting_at": "2026-09-23T10:00:00+05:00",
+  "timezone": "Asia/Qyzylorda",
+  "llm_model": "synthetic",
+  "validation_warnings": []
+}

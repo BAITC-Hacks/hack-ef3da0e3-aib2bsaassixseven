@@ -24,3 +24,5 @@ uv run pyright
 ```
 
 See the [root README](../README.md) for full setup and deployment instructions.
+
+The independent offline meeting ML pipeline is documented in [ML_README.md](ML_README.md).
