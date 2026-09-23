@@ -2,6 +2,26 @@
 
 AIB2BSaaSSixSeven hackathon team repository.
 
+Hackalem is a meeting intelligence prototype with inference on the team's dedicated NVIDIA server and locally stored results. Its target MVP turns
+an uploaded Russian, Kazakh, or mixed-language meeting recording into a
+speaker-attributed transcript, reviewable summary and action items with source
+timestamps, followed by a human-approved PDF protocol.
+
+The meeting flow is currently documented but not yet implemented. The existing
+code is the authenticated FastAPI, Next.js, and Supabase starter on which the
+MVP will be built.
+
+## Product and architecture documentation
+
+- [Documentation index](docs/README.md)
+- [Product requirements](docs/product/PRD.md)
+- [Target users](docs/product/TARGET_USERS.md)
+- [Demo flow](docs/product/DEMO_FLOW.md)
+- [Technical requirements](docs/technical/TRD.md)
+- [Architecture](docs/technical/ARCHITECTURE.md)
+- [Planned API contract](docs/technical/API_CONTRACT.md)
+- [MVP design specification](docs/superpowers/specs/2026-09-23-meeting-intelligence-mvp-design.md)
+
 A hackathon-ready full-stack starter built with Next.js 16, FastAPI, and
 Supabase. It includes email authentication, a protected dashboard, verified
 JWTs, user-scoped database access, Row Level Security, tests, and CI.
@@ -169,6 +189,13 @@ docs/superpowers/         Architecture spec and implementation plan
 ```
 
 ## Deployment
+
+The deployment notes below describe the existing authenticated starter. The
+planned meeting MVP connects the application backend to the team's NVIDIA
+inference server over an authenticated protected connection. Results persist in
+application-local `data/`; temporary audio on both sides is deleted after result
+persistence is acknowledged, or at temporary-data expiry. No shared filesystem
+between the application and GPU server is required. This flow is not implemented yet.
 
 Deploy `frontend/` to Vercel (or another Next.js host) and `backend/` to an ASGI
 host. Configure the same Supabase project in both deployments, set
