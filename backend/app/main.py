@@ -1,6 +1,6 @@
 import asyncio
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager, suppress
+from contextlib import AsyncExitStack, asynccontextmanager, suppress
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,20 +21,23 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncGenerator[None]:
-        if settings.gpu_api_url is None and settings.gpu_api_token is None:
-            yield
-            return
-        if settings.gpu_api_url is None or settings.gpu_api_token is None:
+        if (settings.gpu_api_url is None) != (settings.gpu_api_token is None):
             raise RuntimeError(
                 "GPU_API_URL and GPU_API_TOKEN must be configured together"
             )
         store = LocalArtifactStore(settings.data_root)
-        async with GPUClient(
-            settings.gpu_api_url,
-            settings.gpu_api_token.get_secret_value(),
-            timeout=settings.gpu_api_timeout_seconds,
-        ) as gpu:
-            runtime = CoordinatorRuntime(store, MeetingCoordinator(store, gpu))
+        async with AsyncExitStack() as stack:
+            coordinator = None
+            if settings.gpu_api_url is not None and settings.gpu_api_token is not None:
+                gpu = await stack.enter_async_context(
+                    GPUClient(
+                        settings.gpu_api_url,
+                        settings.gpu_api_token.get_secret_value(),
+                        timeout=settings.gpu_api_timeout_seconds,
+                    )
+                )
+                coordinator = MeetingCoordinator(store, gpu)
+            runtime = CoordinatorRuntime(store, coordinator)
             application.state.coordinator_runtime = runtime
             task = asyncio.create_task(
                 runtime.run_forever(settings.coordinator_poll_seconds)

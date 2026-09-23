@@ -424,15 +424,16 @@ class LocalArtifactStore:
             os.close(fd)
 
     @contextmanager
-    def coordinator_lock(self) -> Generator[bool]:
-        """Allow one scheduler tick across all processes sharing this data root."""
+    def coordinator_lock(self, *, blocking: bool = False) -> Generator[bool]:
+        """Serialize scheduler sweeps and deletion across this data root."""
         path = self._check(self.root / ".coordinator.lock")
         fd = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
         try:
             if not stat.S_ISREG(os.fstat(fd).st_mode):
                 raise UnsafePath("Non-regular coordinator lock")
             try:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                flags = fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB)
+                fcntl.flock(fd, flags)
             except BlockingIOError:
                 yield False
             else:
@@ -446,23 +447,24 @@ class LocalArtifactStore:
         A private tombstone survives interrupted physical removal. A later
         housekeeping sweep may finish removing it without exposing the meeting.
         """
-        self.read_record(owner_id, meeting_id)
-        folder = self._folder(owner_id, meeting_id)
-        tombstone = self._check(folder.parent / f".deleted-{meeting_id}-{uuid4()}")
-        os.rename(folder, tombstone)
-        try:
-            self._sync_directory(folder.parent)
-        except OSError:
-            os.rename(tombstone, folder)
-            self._sync_directory(folder.parent)
-            raise
-        try:
-            shutil.rmtree(tombstone)
-            self._sync_directory(folder.parent)
-        except OSError:
-            # The logical deletion is durable. Physical removal is retried by
-            # periodic maintenance; never restore a partially deleted folder.
-            pass
+        with self.coordinator_lock(blocking=True):
+            self.read_record(owner_id, meeting_id)
+            folder = self._folder(owner_id, meeting_id)
+            tombstone = self._check(folder.parent / f".deleted-{meeting_id}-{uuid4()}")
+            os.rename(folder, tombstone)
+            try:
+                self._sync_directory(folder.parent)
+            except OSError:
+                os.rename(tombstone, folder)
+                self._sync_directory(folder.parent)
+                raise
+            try:
+                shutil.rmtree(tombstone)
+                self._sync_directory(folder.parent)
+            except OSError:
+                # The logical deletion is durable. Physical removal is retried by
+                # periodic maintenance; never restore a partially deleted folder.
+                pass
 
     def publish_results(
         self, owner_id: UUID, meeting_id: UUID, bundle: ResultBundleV1

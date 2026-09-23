@@ -323,3 +323,34 @@ async def test_app_lifespan_resumes_queued_meeting(
         "processing"
     )
     assert gpu.closed
+
+
+async def test_app_lifespan_expires_local_audio_without_gpu_configuration(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = LocalArtifactStore(tmp_path)
+    meeting_id = create_meeting(store)
+    record = store.read_record(OWNER, meeting_id)
+    record.meeting.status = "failed"
+    record.meeting.temporary_expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    record.jobs[0].cleanup_status = "deleted"
+    store.update_meeting(OWNER, record)
+    monkeypatch.setattr(
+        "app.main.get_settings",
+        lambda: Settings(
+            data_root=tmp_path,
+            gpu_api_url=None,
+            gpu_api_token=None,
+            coordinator_poll_seconds=0.01,
+        ),
+    )
+
+    app = create_app()
+    async with app.router.lifespan_context(app):
+        async with asyncio.timeout(1):
+            while store.upload_present(OWNER, meeting_id):
+                await asyncio.sleep(0.01)
+
+    persisted = store.read_meeting(OWNER, meeting_id)
+    assert persisted.source_available is False
+    assert persisted.cleanup_status == "expired"

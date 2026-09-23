@@ -146,7 +146,7 @@ class MeetingCoordinator:
             meeting.stage = "uploading_to_gpu"
             self._save(record)
             remote = None
-            if job.submit_started is True:
+            if job.submit_started is not False:
                 try:
                     remote = await self.gpu.get_job_by_key(meeting_id, meeting.attempt)
                 except GPUDomainError as error:

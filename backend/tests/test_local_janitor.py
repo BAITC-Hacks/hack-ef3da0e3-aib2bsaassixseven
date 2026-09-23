@@ -18,6 +18,7 @@ from app.services.artifact_store import LocalArtifactStore
 from app.services.coordinator import MeetingCoordinator
 from app.services.coordinator_runtime import CoordinatorRuntime
 from app.services.gpu_client import GPUUnavailable
+from app.services.lifecycle import delete_meeting
 
 OWNER = UUID("11111111-1111-4111-8111-111111111111")
 
@@ -80,6 +81,49 @@ async def test_periodic_tick_removes_abandoned_meeting_and_delete_tombstone(
     assert unrelated.exists()
     assert outside_link.is_symlink()
     assert outside.exists()
+
+
+async def test_janitor_cannot_remove_delete_tombstone_before_rollback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = LocalArtifactStore(tmp_path)
+    meeting_id = create_meeting(store)
+    record = store.read_record(OWNER, meeting_id)
+    record.meeting.status = "failed"
+    store.delete_upload(OWNER, meeting_id)
+    record.local_cleanup_status = "deleted"
+    record.jobs[0].cleanup_status = "deleted"
+    record.meeting.cleanup_status = "deleted"
+    store.update_meeting(OWNER, record)
+    parent = tmp_path / "users" / str(OWNER) / "meetings"
+    paused = threading.Event()
+    release = threading.Event()
+    real_sync = store._sync_directory  # pyright: ignore[reportPrivateUsage]
+
+    def fail_first_parent_sync(path: Path) -> None:
+        if path == parent and not paused.is_set():
+            paused.set()
+            assert release.wait(timeout=5)
+            raise OSError("synthetic fsync failure")
+        real_sync(path)
+
+    monkeypatch.setattr(store, "_sync_directory", fail_first_parent_sync)
+    deleting = asyncio.create_task(
+        asyncio.to_thread(delete_meeting, store, OWNER, meeting_id)
+    )
+    try:
+        assert await asyncio.to_thread(paused.wait, 1)
+        runtime = CoordinatorRuntime(
+            LocalArtifactStore(tmp_path), RecordingCoordinator()
+        )
+        await runtime.tick()
+    finally:
+        release.set()
+    with pytest.raises(OSError):
+        await deleting
+
+    assert store.read_meeting(OWNER, meeting_id).status == "failed"
+    assert not list(parent.glob(".deleted-*"))
 
 
 @pytest.mark.parametrize(

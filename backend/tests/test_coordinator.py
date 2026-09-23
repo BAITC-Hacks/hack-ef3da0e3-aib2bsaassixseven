@@ -138,6 +138,25 @@ async def test_timeout_lookup_binds_existing_job_without_resubmitting_audio(
     assert len(gpu.contexts) == 1
 
 
+async def test_legacy_unknown_submit_looks_up_existing_job_before_posting(
+    setup: tuple[LocalArtifactStore, UUID, Meeting, FakeGPUClient],
+) -> None:
+    store, owner, meeting, gpu = setup
+    record = store.read_record(owner, meeting.id)
+    record.jobs[0].submit_started = None
+    record.meeting.status = "processing"
+    record.meeting.stage = "uploading_to_gpu"
+    store.update_meeting(owner, record)
+    gpu.lookup = gpu.job
+
+    resumed = await MeetingCoordinator(store, gpu).process_once(owner, meeting.id)
+
+    assert resumed.status == "processing"
+    assert store.read_record(owner, meeting.id).jobs[0].job_id == gpu.job.job_id
+    assert gpu.calls == ["lookup"]
+    assert gpu.contexts == []
+
+
 async def test_pending_reservation_waits_without_resubmitting_audio(
     setup: tuple[LocalArtifactStore, UUID, Meeting, FakeGPUClient],
 ) -> None:

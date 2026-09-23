@@ -22,7 +22,9 @@ class CoordinatorStep(Protocol):
 
 
 class CoordinatorRuntime:
-    def __init__(self, store: LocalArtifactStore, coordinator: CoordinatorStep) -> None:
+    def __init__(
+        self, store: LocalArtifactStore, coordinator: CoordinatorStep | None
+    ) -> None:
         self.store = store
         self.coordinator = coordinator
         self.janitor = LocalJanitor(store)
@@ -67,6 +69,8 @@ class CoordinatorRuntime:
                 if not acquired:
                     return
                 self.janitor.sweep()
+                if self.coordinator is None:
+                    return
                 for owner_id, meeting_id in self._meeting_ids():
                     try:
                         with self.store.lifecycle_lock(
