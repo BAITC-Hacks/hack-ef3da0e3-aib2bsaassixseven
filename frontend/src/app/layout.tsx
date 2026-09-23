@@ -2,15 +2,18 @@ import type { Metadata } from "next";
 
 import { AppProviders } from "@/components/providers/app-providers";
 
-import "./globals.css";
+import "./globals.scss";
 
 export const metadata: Metadata = {
   title: {
-    default: "Meeting Protocol",
-    template: "%s · Meeting Protocol",
+    default: "Hackalem",
+    template: "%s · Hackalem",
   },
   description:
-    "Private, self-hosted meeting transcription and assignment tracking.",
+    "Private meeting transcription, review, and protocol export.",
+  icons: {
+    icon: [{ url: "/favicon.png", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({

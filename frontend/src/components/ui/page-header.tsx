@@ -1,3 +1,5 @@
+import styles from "./page-header.module.scss";
+
 export function PageHeader({
   title,
   description,
@@ -8,13 +10,11 @@ export function PageHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] pb-5">
+    <header className={styles.header}>
       <div>
-        <h1 className="text-2xl font-semibold tracking-[-0.02em]">{title}</h1>
+        <h1 className={styles.title}>{title}</h1>
         {description ? (
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
-            {description}
-          </p>
+          <p className={styles.description}>{description}</p>
         ) : null}
       </div>
       {action}

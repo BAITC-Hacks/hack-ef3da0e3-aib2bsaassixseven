@@ -1,8 +1,8 @@
 # Frontend
 
 Next.js App Router frontend for the meeting auto-protocol system. This initial
-commit establishes routes, module boundaries, runtime contracts, testing, and
-CI-friendly commands. It intentionally does not implement the final visual
+scaffold establishes routes, Sass architecture, runtime contracts, testing,
+and CI-friendly commands. It intentionally does not implement the final visual
 design yet.
 
 ## Start
@@ -23,9 +23,10 @@ src/components/layout/   Product shell and navigation
 src/components/providers Global client-side providers
 src/components/ui/       Reusable presentation primitives
 src/features/meetings/   Meeting, participant, transcript contracts and UI
-src/features/tasks/      Assignment contracts and UI
+src/features/assignments/ Assignment/evidence contracts and review UI
 src/lib/api/             Transport and API-boundary helpers
 src/lib/config/          Validated runtime configuration
+src/styles/              Sass tokens and reusable mixins
 src/test/                Test environment setup
 ```
 
@@ -41,5 +42,5 @@ npm run test
 npm run build
 ```
 
-See the repository-level `docs/PRD.md`, `docs/TRD.md`, and `AGENTS.md` before
-implementing a feature.
+See `docs/product/PRD.md`, `docs/technical/TRD.md`, and the repository-level
+`AGENTS.md` before implementing a feature.

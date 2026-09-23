@@ -26,9 +26,12 @@ coverage/
 .supabase/
 .worktrees/
 
+# Meeting MVP data (recordings, transcripts, manifests, reports)
+/data/
+/backend/data/
+
 # Editors and operating systems
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
-

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { PageHeader } from "@/components/ui/page-header";
+import { ButtonLink } from "@/components/ui/button-link";
 
 export const metadata: Metadata = { title: "Совещания" };
 
@@ -9,12 +9,9 @@ export default function MeetingsPage() {
   return (
     <PageHeader
       action={
-        <Link
-          className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-contrast)]"
-          href="/meetings/new"
-        >
+        <ButtonLink href="/meetings/new">
           Новое совещание
-        </Link>
+        </ButtonLink>
       }
       description="Записи, статусы обработки, протоколы и расшифровки."
       title="Совещания"
