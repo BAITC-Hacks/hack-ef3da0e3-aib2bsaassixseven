@@ -1,0 +1,91 @@
+@use "../../styles/tokens" as tokens;
+
+.header {
+  position: relative;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: minmax(7rem, 1fr) auto minmax(7rem, 1fr);
+  align-items: center;
+  min-height: 3.75rem;
+  padding: 0 clamp(1rem, 3vw, 2rem);
+  border-bottom: 1px solid #2d2d33;
+  background: #151519;
+  color: #f4f3ef;
+
+  &[data-overlay] {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+    background: rgba(18, 18, 23, 0.72);
+    backdrop-filter: blur(12px);
+  }
+}
+
+.brand {
+  justify-self: start;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.navigation {
+  display: flex;
+  align-items: stretch;
+  align-self: stretch;
+  gap: clamp(1.25rem, 3vw, 3rem);
+
+  a {
+    display: flex;
+    align-items: center;
+    border-bottom: 2px solid transparent;
+    color: #aaa9b0;
+    font-size: 0.875rem;
+    transition:
+      color 150ms ease,
+      border-color 150ms ease;
+
+    &:hover {
+      color: #ffffff;
+    }
+
+    &[aria-current="page"] {
+      border-bottom-color: #d8c9a5;
+      color: #ffffff;
+    }
+  }
+}
+
+.action {
+  display: flex;
+  justify-self: end;
+  align-items: center;
+  gap: tokens.$space-3;
+}
+
+@media (max-width: 46rem) {
+  .header {
+    grid-template-columns: auto 1fr;
+    min-height: auto;
+    padding: tokens.$space-3 tokens.$space-4 0;
+  }
+
+  .brand {
+    align-self: center;
+  }
+
+  .navigation {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    overflow-x: auto;
+    gap: tokens.$space-6;
+    margin-top: tokens.$space-2;
+
+    a {
+      min-height: 2.75rem;
+      white-space: nowrap;
+    }
+  }
+
+  .action {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}

@@ -1,7 +1,7 @@
 [project]
-name = "hackalem-api"
+name = "tirke-api"
 version = "0.1.0"
-description = "FastAPI service for the Hackalem hackathon starter"
+description = "FastAPI service for the Tirke hackathon starter"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
