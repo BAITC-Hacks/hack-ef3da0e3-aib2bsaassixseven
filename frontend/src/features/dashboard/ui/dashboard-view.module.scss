@@ -1,0 +1,154 @@
+@use "../../../styles/tokens" as tokens;
+
+.primaryAction {
+  min-height: 2.5rem;
+  padding: 0 tokens.$space-4;
+  border: 1px solid var(--color-accent);
+  border-radius: tokens.$radius-small;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.summary {
+  display: grid;
+  margin-top: tokens.$space-6;
+  border-block: 1px solid var(--color-border);
+
+  @include tokens.tablet {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  > div {
+    display: flex;
+    align-items: baseline;
+    gap: tokens.$space-3;
+    padding: tokens.$space-5 0;
+
+    @include tokens.tablet {
+      padding-inline: tokens.$space-5;
+      border-right: 1px solid var(--color-border);
+
+      &:first-child {
+        padding-left: 0;
+      }
+
+      &:last-child {
+        border-right: 0;
+      }
+    }
+  }
+
+  strong {
+    font-size: 1.75rem;
+    font-weight: 600;
+  }
+
+  span {
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+  }
+}
+
+.columns {
+  display: grid;
+  gap: tokens.$space-8;
+  margin-top: tokens.$space-8;
+
+  @media (min-width: 62rem) {
+    grid-template-columns: minmax(0, 1.5fr) minmax(18rem, 0.8fr);
+  }
+}
+
+.section {
+  min-width: 0;
+
+  > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: tokens.$space-4;
+    padding-bottom: tokens.$space-3;
+    border-bottom: 1px solid var(--color-border);
+
+    h2 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    a {
+      color: var(--color-text-muted);
+      font-size: 0.8125rem;
+    }
+  }
+}
+
+.meetingList,
+.taskList {
+  display: grid;
+
+  > a {
+    border-bottom: 1px solid var(--color-border);
+    transition: background-color 150ms ease;
+
+    &:hover {
+      background: var(--color-surface);
+    }
+  }
+}
+
+.meetingList > a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: tokens.$space-4;
+  padding: tokens.$space-4 tokens.$space-2;
+
+  > div {
+    display: grid;
+    gap: tokens.$space-1;
+  }
+
+  strong {
+    font-size: 0.9rem;
+  }
+
+  span {
+    color: var(--color-text-muted);
+    font-size: 0.78rem;
+  }
+
+  > span[data-status="review_required"] {
+    color: #8a5d18;
+  }
+
+  > span[data-status="processing"] {
+    color: #66579b;
+  }
+
+  > span[data-status="approved"] {
+    color: #356b54;
+  }
+}
+
+.taskList > a {
+  display: grid;
+  gap: tokens.$space-1;
+  padding: tokens.$space-4 tokens.$space-2;
+
+  strong {
+    font-size: 0.875rem;
+  }
+
+  span {
+    color: var(--color-text-muted);
+    font-size: 0.78rem;
+  }
+}
+
+.demoNotice {
+  margin: tokens.$space-8 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}

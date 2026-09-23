@@ -1,0 +1,77 @@
+@use "../../../styles/tokens" as tokens;
+
+.page {
+  display: grid;
+  min-height: 100dvh;
+  background: #111115;
+  color: #f4f3ef;
+
+  @include tokens.tablet {
+    grid-template-columns: minmax(22rem, 30rem) minmax(0, 1fr);
+  }
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  padding: tokens.$space-6;
+  background: #18181d;
+  border-right: 1px solid #2e2e35;
+
+  @include tokens.tablet {
+    padding: tokens.$space-8;
+  }
+}
+
+.brand {
+  align-self: flex-start;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.heading {
+  margin-top: clamp(5rem, 18vh, 9rem);
+
+  h1 {
+    margin: 0;
+    font-size: clamp(1.7rem, 4vw, 2.25rem);
+    letter-spacing: -0.035em;
+  }
+
+  p {
+    max-width: 24rem;
+    margin: tokens.$space-3 0 0;
+    color: #a9a8ae;
+    line-height: 1.6;
+  }
+}
+
+.context {
+  display: none;
+
+  @include tokens.tablet {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: tokens.$space-3;
+    padding: clamp(2rem, 6vw, 5rem);
+    background: #101014;
+
+    p,
+    strong {
+      max-width: 32rem;
+      margin: 0;
+    }
+
+    p {
+      color: #8e8d95;
+    }
+
+    strong {
+      font-size: clamp(1.4rem, 3vw, 2.4rem);
+      font-weight: 500;
+      letter-spacing: -0.035em;
+      line-height: 1.2;
+    }
+  }
+}

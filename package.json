@@ -1,0 +1,7 @@
+{
+  "name": "tirke-root",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frontend run dev"
+  }
+}

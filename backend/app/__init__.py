@@ -1,2 +1,1 @@
-"""Hackalem API package."""
-
+"""Tirke API package."""

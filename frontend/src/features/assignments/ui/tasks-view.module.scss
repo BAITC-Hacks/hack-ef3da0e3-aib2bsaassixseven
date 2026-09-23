@@ -1,0 +1,70 @@
+@use "../../../styles/tokens" as tokens;
+
+.toolbar {
+  display: flex;
+  margin-top: tokens.$space-6;
+
+  label {
+    display: grid;
+    gap: tokens.$space-2;
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+  }
+
+  select {
+    min-height: 2.4rem;
+    padding: 0 tokens.$space-3;
+    border: 1px solid var(--color-border);
+    border-radius: tokens.$radius-small;
+    background: var(--color-surface);
+  }
+}
+
+.tableWrap {
+  margin-top: tokens.$space-5;
+  overflow-x: auto;
+  border-top: 1px solid var(--color-border);
+
+  table {
+    width: 100%;
+    min-width: 44rem;
+    border-collapse: collapse;
+    text-align: left;
+  }
+
+  th,
+  td {
+    padding: tokens.$space-4 tokens.$space-3;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.82rem;
+  }
+
+  th {
+    color: var(--color-text-muted);
+    font-weight: 500;
+  }
+
+  td:first-child {
+    display: grid;
+    gap: tokens.$space-1;
+
+    a {
+      color: var(--color-text-muted);
+      font-size: 0.75rem;
+    }
+  }
+
+  select {
+    min-height: 2.25rem;
+    padding: 0 tokens.$space-2;
+    border: 1px solid var(--color-border);
+    border-radius: tokens.$radius-small;
+    background: var(--color-surface);
+  }
+}
+
+.empty {
+  margin: 0;
+  padding: 4rem 0;
+  color: var(--color-text-muted);
+}

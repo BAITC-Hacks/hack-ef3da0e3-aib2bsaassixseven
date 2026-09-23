@@ -1,0 +1,348 @@
+@use "../../../styles/tokens" as tokens;
+
+.breadcrumb {
+  display: flex;
+  gap: tokens.$space-2;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+
+  span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.titleBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: tokens.$space-4;
+  margin-top: tokens.$space-5;
+  padding-bottom: tokens.$space-5;
+  border-bottom: 1px solid var(--color-border);
+
+  h1,
+  p {
+    margin: 0;
+  }
+
+  h1 {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    letter-spacing: -0.035em;
+  }
+
+  p {
+    margin-top: tokens.$space-2;
+    color: var(--color-text-muted);
+    font-size: 0.82rem;
+  }
+
+  > strong {
+    color: #356b54;
+    font-size: 0.8rem;
+    font-weight: 650;
+
+    &[data-status="review_required"] {
+      color: #8a5d18;
+    }
+  }
+}
+
+.titleInput {
+  width: min(100%, 40rem);
+  padding: tokens.$space-2;
+  border: 1px solid var(--color-border);
+  border-radius: tokens.$radius-small;
+  background: var(--color-surface);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-2;
+  margin-top: tokens.$space-4;
+
+  button {
+    min-height: 2.25rem;
+    padding: 0 tokens.$space-3;
+    border: 1px solid var(--color-border);
+    border-radius: tokens.$radius-small;
+    background: var(--color-surface);
+    cursor: pointer;
+    font-size: 0.78rem;
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+  }
+
+  .delete {
+    margin-left: auto;
+    color: var(--color-danger);
+  }
+}
+
+.message,
+.warning {
+  margin: tokens.$space-4 0 0;
+  padding: tokens.$space-3 tokens.$space-4;
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-surface);
+  font-size: 0.82rem;
+}
+
+.warning {
+  border-left-color: #a87824;
+  color: #674b1e;
+}
+
+.section {
+  margin-top: tokens.$space-8;
+
+  > h2,
+  .sectionHeader h2 {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  > p {
+    max-width: 54rem;
+    margin: tokens.$space-4 0 0;
+    line-height: 1.7;
+  }
+
+  > textarea {
+    width: 100%;
+    margin-top: tokens.$space-4;
+  }
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: tokens.$space-4;
+  padding-bottom: tokens.$space-3;
+  border-bottom: 1px solid var(--color-border);
+
+  button {
+    border: 0;
+    background: transparent;
+    color: var(--color-accent);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 650;
+  }
+}
+
+.section textarea,
+.assignment input {
+  padding: tokens.$space-3;
+  border: 1px solid var(--color-border);
+  border-radius: tokens.$radius-small;
+  background: var(--color-surface);
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.assignmentList {
+  display: grid;
+}
+
+.assignment {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(9rem, 0.7fr) minmax(8rem, 0.5fr) auto;
+  gap: tokens.$space-3;
+  padding: tokens.$space-4 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.82rem;
+
+  label {
+    display: grid;
+    gap: tokens.$space-2;
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+  }
+
+  input {
+    min-height: 2.4rem;
+    padding-block: 0;
+    color: var(--color-text);
+    font-size: 0.82rem;
+  }
+
+  > span {
+    color: var(--color-text-muted);
+  }
+
+  > p {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+
+    span {
+      margin-right: tokens.$space-2;
+      color: var(--color-accent);
+    }
+  }
+}
+
+.removeTask {
+  align-self: end;
+  min-height: 2.4rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-danger);
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.transcript {
+  display: grid;
+  margin-top: tokens.$space-3;
+
+  > div {
+    padding: tokens.$space-4 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  header {
+    display: flex;
+    gap: tokens.$space-3;
+    font-size: 0.78rem;
+
+    span {
+      color: var(--color-text-muted);
+    }
+  }
+
+  p {
+    margin: tokens.$space-2 0 0;
+    line-height: 1.65;
+  }
+
+  textarea {
+    width: 100%;
+    margin-top: tokens.$space-3;
+  }
+}
+
+.approvalBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: tokens.$space-4;
+  margin-top: tokens.$space-8;
+  padding: tokens.$space-5;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+
+  > div {
+    display: grid;
+    gap: tokens.$space-1;
+
+    span {
+      color: var(--color-text-muted);
+      font-size: 0.8rem;
+    }
+  }
+
+  button {
+    min-height: 2.5rem;
+    padding: 0 tokens.$space-4;
+    border: 1px solid var(--color-accent);
+    border-radius: tokens.$radius-small;
+    background: var(--color-accent);
+    color: var(--color-accent-contrast);
+    cursor: pointer;
+    font-weight: 650;
+  }
+}
+
+.processing,
+.notFound {
+  max-width: 42rem;
+  padding-top: clamp(2rem, 8vh, 6rem);
+
+  > a {
+    color: var(--color-text-muted);
+    font-size: 0.82rem;
+  }
+
+  h1 {
+    margin: tokens.$space-6 0 tokens.$space-3;
+    font-size: clamp(1.7rem, 4vw, 2.4rem);
+    letter-spacing: -0.04em;
+  }
+
+  > p {
+    color: var(--color-text-muted);
+  }
+}
+
+.processing ol {
+  display: grid;
+  gap: 0;
+  margin: tokens.$space-8 0 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    padding: tokens.$space-4 0;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+  }
+
+  li[data-complete] {
+    color: #356b54;
+  }
+
+  li[data-active] {
+    color: var(--color-text);
+    font-weight: 650;
+  }
+}
+
+.processingNote {
+  margin-top: tokens.$space-5;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 48rem) {
+  .assignment {
+    grid-template-columns: 1fr;
+
+    > p {
+      grid-column: 1;
+    }
+  }
+
+  .actions .delete {
+    margin-left: 0;
+  }
+}
+
+@media print {
+  .breadcrumb,
+  .actions,
+  .message,
+  .warning,
+  .approvalBar,
+  .sectionHeader button,
+  .removeTask {
+    display: none;
+  }
+
+  .detail {
+    color: #000000;
+  }
+}

@@ -1,0 +1,16 @@
+@use "../../styles/tokens" as tokens;
+
+.shell {
+  min-height: 100dvh;
+  background: var(--color-background);
+}
+
+.content {
+  width: min(100%, 76rem);
+  margin: 0 auto;
+  padding: tokens.$space-8 tokens.$space-5 4rem;
+
+  @include tokens.tablet {
+    padding-inline: tokens.$space-8;
+  }
+}
