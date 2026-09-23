@@ -16,8 +16,8 @@ export default async function WorkspaceLayout({
       initialProfile={{
         displayName: viewer.displayName,
         email: viewer.email,
-        role: "Организатор совещаний",
-        department: "Проектная команда",
+        role: "Meeting organizer",
+        department: "Project team",
       }}
     >
       <AppShell>{children}</AppShell>

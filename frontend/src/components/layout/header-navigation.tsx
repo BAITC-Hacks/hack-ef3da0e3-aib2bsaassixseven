@@ -8,15 +8,13 @@ import styles from "./site-header.module.scss";
 const navigation = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/meetings", label: "Meetings" },
-  { href: "/tasks", label: "Tasks" },
-  { href: "/settings", label: "Settings" },
 ] as const;
 
 export function HeaderNavigation() {
   const pathname = usePathname();
 
   return (
-    <nav className={styles.navigation} aria-label="Основная навигация">
+    <nav className={styles.navigation} aria-label="Primary navigation">
       {navigation.map((item) => {
         const isActive =
           pathname === item.href || pathname.startsWith(`${item.href}/`);

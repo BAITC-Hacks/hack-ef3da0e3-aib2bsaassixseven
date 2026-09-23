@@ -14,7 +14,7 @@ import type { DemoMeetingStatus } from "@/features/demo-workspace/model/demo-dat
 import styles from "./meetings-view.module.scss";
 
 export function MeetingsView() {
-  const { deleteMeeting, meetings, openNewMeeting } = useDemoWorkspace();
+  const { deleteMeeting, meetings } = useDemoWorkspace();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | DemoMeetingStatus>("all");
   const filteredMeetings = useMemo(
@@ -30,35 +30,31 @@ export function MeetingsView() {
   return (
     <div>
       <PageHeader
-        action={
-          <button className={styles.primaryAction} onClick={openNewMeeting}>
-            Новое совещание
-          </button>
-        }
-        description="Загрузки, обработка, проверка и утверждённые протоколы."
-        title="Совещания"
+        description="Upload, process, review and approve meeting minutes."
+        title="Meetings"
       />
 
       <div className={styles.toolbar}>
         <input
-          aria-label="Поиск совещаний"
+          aria-label="Search meetings"
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Поиск по названию"
+          placeholder="Search"
           type="search"
           value={query}
         />
         <select
-          aria-label="Фильтр по статусу"
+          aria-label="Filter by status"
           onChange={(event) =>
             setStatus(event.target.value as "all" | DemoMeetingStatus)
           }
           value={status}
         >
-          <option value="all">Все статусы</option>
-          <option value="processing">Обработка</option>
-          <option value="review_required">Нужна проверка</option>
-          <option value="approved">Утверждено</option>
-          <option value="failed">Ошибка</option>
+          <option value="all">All statuses</option>
+          <option value="queued">Queued</option>
+          <option value="processing">Processing</option>
+          <option value="review_required">Needs review</option>
+          <option value="approved">Approved</option>
+          <option value="failed">Failed</option>
         </select>
       </div>
 
@@ -66,11 +62,11 @@ export function MeetingsView() {
         <table>
           <thead>
             <tr>
-              <th>Совещание</th>
-              <th>Дата</th>
-              <th>Участники</th>
-              <th>Статус</th>
-              <th aria-label="Действия" />
+              <th>Meeting</th>
+              <th>Date</th>
+              <th>Participants</th>
+              <th>Status</th>
+              <th aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
@@ -88,13 +84,13 @@ export function MeetingsView() {
                 <td>
                   <button
                     onClick={() => {
-                      if (window.confirm(`Удалить «${meeting.title}»?`)) {
+                      if (window.confirm(`Delete “${meeting.title}”?`)) {
                         deleteMeeting(meeting.id);
                       }
                     }}
                     type="button"
                   >
-                    Удалить
+                    Delete
                   </button>
                 </td>
               </tr>
@@ -103,8 +99,7 @@ export function MeetingsView() {
         </table>
         {filteredMeetings.length === 0 ? (
           <div className={styles.empty}>
-            <p>Совещания не найдены.</p>
-            <button onClick={openNewMeeting}>Добавить запись</button>
+            <p>No meetings found.</p>
           </div>
         ) : null}
       </div>

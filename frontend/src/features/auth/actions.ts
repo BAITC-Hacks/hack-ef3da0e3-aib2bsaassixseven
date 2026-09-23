@@ -9,8 +9,8 @@ import { publicEnv } from "@/lib/config/public-env";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const credentialsSchema = z.object({
-  email: z.email("Введите корректный email."),
-  password: z.string().min(8, "Пароль должен содержать минимум 8 символов."),
+  email: z.email("Enter a valid email address."),
+  password: z.string().min(8, "Password must be at least 8 characters."),
 });
 
 function readCredentials(formData: FormData) {
@@ -27,7 +27,7 @@ export async function signIn(
   if (!publicEnv.isSupabaseConfigured) {
     return {
       status: "error",
-      message: "Supabase не настроен. Используйте демо-вход ниже.",
+      message: "Supabase is not configured. Use demo access below.",
     };
   }
 
@@ -35,7 +35,7 @@ export async function signIn(
   if (!credentials.success) {
     return {
       status: "error",
-      message: credentials.error.issues[0]?.message ?? "Проверьте данные.",
+      message: credentials.error.issues[0]?.message ?? "Check your details.",
     };
   }
 
@@ -43,7 +43,7 @@ export async function signIn(
   const { error } = await supabase.auth.signInWithPassword(credentials.data);
 
   if (error) {
-    return { status: "error", message: "Неверный email или пароль." };
+    return { status: "error", message: "Incorrect email or password." };
   }
 
   redirect("/dashboard");
@@ -56,7 +56,7 @@ export async function signUp(
   if (!publicEnv.isSupabaseConfigured) {
     return {
       status: "error",
-      message: "Supabase не настроен. Используйте демо-вход ниже.",
+      message: "Supabase is not configured. Use demo access below.",
     };
   }
 
@@ -64,7 +64,7 @@ export async function signUp(
   if (!credentials.success) {
     return {
       status: "error",
-      message: credentials.error.issues[0]?.message ?? "Проверьте данные.",
+      message: credentials.error.issues[0]?.message ?? "Check your details.",
     };
   }
 
@@ -84,7 +84,7 @@ export async function signUp(
   if (error) {
     return {
       status: "error",
-      message: "Не удалось создать аккаунт. Проверьте данные и настройки Auth.",
+      message: "We couldn't create the account. Check your details and Auth configuration.",
     };
   }
 
@@ -94,7 +94,7 @@ export async function signUp(
 
   return {
     status: "success",
-    message: "Проверьте почту и подтвердите регистрацию.",
+    message: "Check your inbox to confirm your account.",
   };
 }
 

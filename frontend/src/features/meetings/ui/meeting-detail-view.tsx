@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 
 import { useDemoWorkspace } from "@/features/demo-workspace/demo-workspace-provider";
 import {
@@ -16,6 +16,14 @@ import type {
 
 import styles from "./meeting-detail-view.module.scss";
 
+const meetingTabs = [
+  { id: "summary", label: "Summary" },
+  { id: "tasks", label: "Tasks" },
+  { id: "transcript", label: "Full transcript" },
+] as const;
+
+type MeetingTab = (typeof meetingTabs)[number]["id"];
+
 function emptyAssignment(): DemoAssignment {
   return {
     id: crypto.randomUUID(),
@@ -23,7 +31,7 @@ function emptyAssignment(): DemoAssignment {
     assignee: null,
     dueDate: null,
     status: "open",
-    evidence: "Добавлено вручную",
+    evidence: "Added manually",
     time: "—",
   };
 }
@@ -37,9 +45,12 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
     saveReview,
   } = useDemoWorkspace();
   const meeting = meetings.find((item) => item.id === meetingId);
+  const tabIdPrefix = useId();
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [draftOverride, setDraft] = useState<DemoMeeting | null>(null);
   const [editingOverride, setIsEditing] = useState<boolean | null>(null);
   const [message, setMessage] = useState("");
+  const [activeTab, setActiveTab] = useState<MeetingTab>("summary");
   const draft = draftOverride ?? meeting ?? null;
   const isEditing =
     editingOverride ?? (meeting?.status === "review_required");
@@ -55,9 +66,9 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
   if (!meeting || !draft) {
     return (
       <div className={styles.notFound}>
-        <h1>Совещание не найдено</h1>
-        <p>Возможно, оно было удалено из текущей демо-сессии.</p>
-        <Link href="/meetings">Вернуться к совещаниям</Link>
+        <h1>Meeting not found</h1>
+        <p>It may have been deleted from this demo session.</p>
+        <Link href="/meetings">Back to meetings</Link>
       </div>
     );
   }
@@ -65,19 +76,19 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
   if (meeting.status === "processing" || meeting.status === "queued") {
     return (
       <div className={styles.processing}>
-        <Link href="/meetings">← Совещания</Link>
+        <Link href="/meetings">← Meetings</Link>
         <h1>{meeting.title}</h1>
         <p aria-live="polite">
-          {meeting.processingStage || "Задача ожидает обработки"}
+          {meeting.processingStage || "Waiting to process this recording"}
         </p>
         <ol>
-          <li data-complete>Файл принят</li>
-          <li data-active>Локальная обработка записи</li>
-          <li>Проверка протокола</li>
-          <li>Утверждение и PDF</li>
+          <li data-complete>File received</li>
+          <li data-active>Processing the recording locally</li>
+          <li>Review meeting minutes</li>
+          <li>Approve and export PDF</li>
         </ol>
         <p className={styles.processingNote}>
-          Можно перейти в другой раздел — обработка продолжится в фоне.
+          You can leave this page. Processing will continue in the background.
         </p>
       </div>
     );
@@ -91,14 +102,14 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
       transcript: draft.transcript,
       assignments: draft.assignments,
     });
-    setMessage("Изменения сохранены. Протокол требует утверждения.");
+    setMessage("Changes saved. The minutes need approval.");
   }
 
   function approveDraft() {
     saveDraft();
     approveMeeting(meetingId);
     setIsEditing(false);
-    setMessage("Протокол утверждён и готов к экспорту.");
+    setMessage("Minutes approved and ready to export.");
   }
 
   async function shareMeeting() {
@@ -109,13 +120,47 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
       return;
     }
     await navigator.clipboard.writeText(url);
-    setMessage("Ссылка скопирована.");
+    setMessage("Link copied.");
+  }
+
+  function activateTab(index: number) {
+    const tab = meetingTabs[index];
+    if (!tab) return;
+    setActiveTab(tab.id);
+    tabRefs.current[index]?.focus();
+  }
+
+  function handleTabKeyDown(
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) {
+    let nextIndex: number | null = null;
+
+    if (event.key === "ArrowRight") {
+      nextIndex = (index + 1) % meetingTabs.length;
+    } else if (event.key === "ArrowLeft") {
+      nextIndex = (index - 1 + meetingTabs.length) % meetingTabs.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = meetingTabs.length - 1;
+    }
+
+    if (nextIndex === null) return;
+    event.preventDefault();
+    activateTab(nextIndex);
+  }
+
+  function panelClassName(tab: MeetingTab) {
+    return activeTab === tab
+      ? `${styles.section} ${styles.tabPanel}`
+      : `${styles.section} ${styles.tabPanel} ${styles.tabPanelHidden}`;
   }
 
   return (
     <article className={styles.detail}>
-      <nav className={styles.breadcrumb} aria-label="Хлебные крошки">
-        <Link href="/meetings">Совещания</Link>
+      <nav className={styles.breadcrumb} aria-label="Breadcrumb">
+        <Link href="/meetings">Meetings</Link>
         <span>/</span>
         <span>{draft.title}</span>
       </nav>
@@ -124,7 +169,7 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
         <div>
           {isEditing ? (
             <input
-              aria-label="Название совещания"
+              aria-label="Meeting title"
               className={styles.titleInput}
               onChange={(event) =>
                 setDraft({ ...draft, title: event.target.value })
@@ -136,7 +181,8 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
           )}
           <p>
             {formatMeetingDate(draft.recordedAt)} · {draft.duration || "—"} ·{" "}
-            {draft.participantNames.length} участника
+            {draft.participantNames.length}{" "}
+            {draft.participantNames.length === 1 ? "participant" : "participants"}
           </p>
         </div>
         <strong data-status={meeting.status}>
@@ -147,35 +193,28 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
       <div className={styles.actions}>
         {meeting.status === "approved" && !isEditing ? (
           <button onClick={() => setIsEditing(true)} type="button">
-            Редактировать
+            Edit
           </button>
         ) : null}
         {isEditing ? (
           <button onClick={saveDraft} type="button">
-            Сохранить
+            Save
           </button>
         ) : null}
         <button onClick={shareMeeting} type="button">
-          Поделиться
-        </button>
-        <button
-          disabled={meeting.status !== "approved"}
-          onClick={() => window.print()}
-          type="button"
-        >
-          Скачать PDF
+          Share
         </button>
         <button
           className={styles.delete}
           onClick={() => {
-            if (window.confirm(`Удалить «${meeting.title}»?`)) {
+            if (window.confirm(`Delete “${meeting.title}”?`)) {
               deleteMeeting(meeting.id);
               router.push("/meetings");
             }
           }}
           type="button"
         >
-          Удалить
+          Delete
         </button>
       </div>
 
@@ -187,15 +226,67 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
 
       {missingFields > 0 ? (
         <p className={styles.warning} role="status">
-          {missingFields} поручения содержат пустого ответственного или срок.
-          Это допустимо, но требует проверки перед утверждением.
+          {missingFields} assignment{missingFields === 1 ? "" : "s"}{" "}
+          {missingFields === 1 ? "has" : "have"} a missing assignee, deadline
+          or title. This is allowed, but review the fields before approval.
         </p>
       ) : null}
 
-      <section className={styles.section}>
-        <h2>Краткое содержание</h2>
+      <div className={styles.tabToolbar}>
+        <div aria-label="Meeting content" className={styles.tabs} role="tablist">
+          {meetingTabs.map((tab, index) => {
+            const isActive = activeTab === tab.id;
+            const tabId = `${tabIdPrefix}-${tab.id}-tab`;
+            const panelId = `${tabIdPrefix}-${tab.id}-panel`;
+
+            return (
+              <button
+                aria-controls={panelId}
+                aria-selected={isActive}
+                className={styles.tab}
+                id={tabId}
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                onKeyDown={(event) => handleTabKeyDown(event, index)}
+                ref={(element) => {
+                  tabRefs.current[index] = element;
+                }}
+                role="tab"
+                tabIndex={isActive ? 0 : -1}
+                type="button"
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          className={styles.download}
+          disabled={meeting.status !== "approved" || isEditing}
+          onClick={() => window.print()}
+          title={
+            meeting.status === "approved" && !isEditing
+              ? "Download the approved minutes as PDF"
+              : "Approve the saved minutes before downloading"
+          }
+          type="button"
+        >
+          Download PDF
+        </button>
+      </div>
+
+      <section
+        aria-hidden={activeTab !== "summary"}
+        aria-labelledby={`${tabIdPrefix}-summary-tab`}
+        className={panelClassName("summary")}
+        id={`${tabIdPrefix}-summary-panel`}
+        role="tabpanel"
+        tabIndex={activeTab === "summary" ? 0 : -1}
+      >
+        <h2>Summary</h2>
         {isEditing ? (
           <textarea
+            aria-label="Meeting summary"
             onChange={(event) =>
               setDraft({ ...draft, summary: event.target.value })
             }
@@ -207,9 +298,16 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
         )}
       </section>
 
-      <section className={styles.section}>
+      <section
+        aria-hidden={activeTab !== "tasks"}
+        aria-labelledby={`${tabIdPrefix}-tasks-tab`}
+        className={panelClassName("tasks")}
+        id={`${tabIdPrefix}-tasks-panel`}
+        role="tabpanel"
+        tabIndex={activeTab === "tasks" ? 0 : -1}
+      >
         <div className={styles.sectionHeader}>
-          <h2>Поручения</h2>
+          <h2>Tasks</h2>
           {isEditing ? (
             <button
               onClick={() =>
@@ -220,7 +318,7 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
               }
               type="button"
             >
-              + Добавить поручение
+              + Add task
             </button>
           ) : null}
         </div>
@@ -230,7 +328,7 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
               {isEditing ? (
                 <>
                   <label className={styles.assignmentTitle}>
-                    Поручение
+                    Task
                     <input
                       onChange={(event) => {
                         const assignments = [...draft.assignments];
@@ -244,7 +342,7 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
                     />
                   </label>
                   <label>
-                    Ответственный
+                    Assignee
                     <input
                       onChange={(event) => {
                         const assignments = [...draft.assignments];
@@ -258,7 +356,7 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
                     />
                   </label>
                   <label>
-                    Срок
+                    Deadline
                     <input
                       onChange={(event) => {
                         const assignments = [...draft.assignments];
@@ -284,14 +382,14 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
                     }
                     type="button"
                   >
-                    Удалить
+                    Delete
                   </button>
                 </>
               ) : (
                 <>
                   <strong>{task.title}</strong>
-                  <span>{task.assignee || "Ответственный не указан"}</span>
-                  <span>{task.dueDate || "Срок не указан"}</span>
+                  <span>{task.assignee || "Assignee not set"}</span>
+                  <span>{task.dueDate || "Deadline not set"}</span>
                 </>
               )}
               <p>
@@ -302,8 +400,15 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
         </div>
       </section>
 
-      <section className={styles.section}>
-        <h2>Транскрипт</h2>
+      <section
+        aria-hidden={activeTab !== "transcript"}
+        aria-labelledby={`${tabIdPrefix}-transcript-tab`}
+        className={panelClassName("transcript")}
+        id={`${tabIdPrefix}-transcript-panel`}
+        role="tabpanel"
+        tabIndex={activeTab === "transcript" ? 0 : -1}
+      >
+        <h2>Full transcript</h2>
         <div className={styles.transcript}>
           {draft.transcript.map((segment, index) => (
             <div key={segment.id}>
@@ -313,7 +418,7 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
               </header>
               {isEditing ? (
                 <textarea
-                  aria-label={`Реплика ${segment.speaker} ${segment.time}`}
+                  aria-label={`Transcript segment from ${segment.speaker} at ${segment.time}`}
                   onChange={(event) => {
                     const transcript = [...draft.transcript];
                     transcript[index] = {
@@ -336,11 +441,11 @@ export function MeetingDetailView({ meetingId }: { meetingId: string }) {
       {isEditing ? (
         <footer className={styles.approvalBar}>
           <div>
-            <strong>Проверьте результат перед утверждением</strong>
-            <span>Новая правка снова потребует подтверждения.</span>
+            <strong>Review the result before approval</strong>
+            <span>Any later edit will require approval again.</span>
           </div>
           <button onClick={approveDraft} type="button">
-            Утвердить протокол
+            Approve minutes
           </button>
         </footer>
       ) : null}

@@ -1,16 +1,24 @@
 @use "../styles/tokens" as tokens;
 
 :root {
-  color-scheme: light;
-  --color-background: #f7f7f5;
-  --color-surface: #ffffff;
-  --color-surface-muted: #efefec;
-  --color-border: #d8d8d3;
-  --color-text: #1d1d1b;
-  --color-text-muted: #686863;
-  --color-accent: #315c4b;
-  --color-accent-contrast: #ffffff;
-  --color-danger: #a3342f;
+  color-scheme: dark;
+  --color-background: #050506;
+  --color-surface: #111115;
+  --color-surface-muted: #18181d;
+  --color-border: #2e2e35;
+  --color-border-strong: #55555f;
+  --color-border-hover: #74747e;
+  --color-text: #f4f3ef;
+  --color-text-muted: #929198;
+  --color-accent: #d8c9a5;
+  --color-accent-contrast: #16130d;
+  --color-danger: #e07a72;
+  --color-action-surface: #1b1b20;
+  --color-action-surface-hover: #24242a;
+  --color-status-closed: #62dfa5;
+  --color-status-progress: #ffd166;
+  --color-status-future: #c5a3ff;
+  --color-status-failed: #ff8178;
 }
 
 *,
@@ -25,11 +33,11 @@ html {
 }
 
 body {
-  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   background: var(--color-background);
   color: var(--color-text);
-  font-family: "IBM Plex Sans", "Noto Sans", sans-serif;
+  font-family: "Avenir Next", "IBM Plex Sans", "Noto Sans", system-ui, sans-serif;
   text-rendering: optimizeLegibility;
 }
 

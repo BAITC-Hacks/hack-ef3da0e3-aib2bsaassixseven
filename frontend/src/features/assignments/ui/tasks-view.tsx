@@ -29,23 +29,23 @@ export function TasksView() {
   return (
     <div>
       <PageHeader
-        description="Поручения из проверенных и черновых протоколов."
-        title="Поручения"
+        description="Assignments from approved and draft meeting minutes."
+        title="Assignments"
       />
 
       <div className={styles.toolbar}>
         <label>
-          Статус
+          Status
           <select
             onChange={(event) =>
               setStatus(event.target.value as "all" | DemoTaskStatus)
             }
             value={status}
           >
-            <option value="all">Все</option>
-            <option value="open">Открытые</option>
-            <option value="in_progress">В работе</option>
-            <option value="completed">Выполненные</option>
+            <option value="all">All</option>
+            <option value="open">Open</option>
+            <option value="in_progress">In progress</option>
+            <option value="completed">Completed</option>
           </select>
         </label>
       </div>
@@ -54,10 +54,10 @@ export function TasksView() {
         <table>
           <thead>
             <tr>
-              <th>Поручение</th>
-              <th>Ответственный</th>
-              <th>Срок</th>
-              <th>Статус</th>
+              <th>Assignment</th>
+              <th>Assignee</th>
+              <th>Deadline</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
@@ -69,11 +69,11 @@ export function TasksView() {
                     {task.meeting.title}
                   </Link>
                 </td>
-                <td>{task.assignee || "Нужно уточнить"}</td>
+                <td>{task.assignee || "Needs review"}</td>
                 <td>{formatDueDate(task.dueDate)}</td>
                 <td>
                   <select
-                    aria-label={`Статус поручения ${task.title}`}
+                    aria-label={`Status for ${task.title}`}
                     onChange={(event) =>
                       updateTaskStatus(
                         task.id,
@@ -96,7 +96,7 @@ export function TasksView() {
           </tbody>
         </table>
         {tasks.length === 0 ? (
-          <p className={styles.empty}>Поручений с таким статусом нет.</p>
+          <p className={styles.empty}>No assignments match this status.</p>
         ) : null}
       </div>
     </div>

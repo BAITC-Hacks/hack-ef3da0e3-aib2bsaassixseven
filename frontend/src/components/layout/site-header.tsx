@@ -12,7 +12,7 @@ export function SiteHeader({
 }) {
   return (
     <header className={styles.header} data-overlay={overlay || undefined}>
-      <Link className={styles.brand} href="/" aria-label="Tirke — главная">
+      <Link className={styles.brand} href="/" aria-label="Tirke home">
         Tirke
       </Link>
       <HeaderNavigation />

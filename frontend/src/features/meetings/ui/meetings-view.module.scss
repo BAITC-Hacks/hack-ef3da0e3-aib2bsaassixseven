@@ -1,16 +1,5 @@
 @use "../../../styles/tokens" as tokens;
 
-.primaryAction {
-  min-height: 2.5rem;
-  padding: 0 tokens.$space-4;
-  border: 1px solid var(--color-accent);
-  border-radius: tokens.$radius-small;
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-  cursor: pointer;
-  font-weight: 650;
-}
-
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -70,15 +59,23 @@
   }
 
   td[data-status="review_required"] {
-    color: #8a5d18;
+    color: var(--color-status-progress);
   }
 
   td[data-status="processing"] {
-    color: #66579b;
+    color: var(--color-status-progress);
   }
 
   td[data-status="approved"] {
-    color: #356b54;
+    color: var(--color-status-closed);
+  }
+
+  td[data-status="queued"] {
+    color: var(--color-status-future);
+  }
+
+  td[data-status="failed"] {
+    color: var(--color-status-failed);
   }
 
   td:last-child {
@@ -103,14 +100,5 @@
 
   p {
     margin: 0;
-  }
-
-  button {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: var(--color-accent);
-    cursor: pointer;
-    font-weight: 650;
   }
 }

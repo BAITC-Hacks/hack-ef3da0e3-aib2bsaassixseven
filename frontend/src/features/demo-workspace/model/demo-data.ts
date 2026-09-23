@@ -50,7 +50,7 @@ export type DemoProfile = {
 export const seededMeetings: DemoMeeting[] = [
   {
     id: "weekly-product-sync",
-    title: "Еженедельный продуктовый синк",
+    title: "Weekly product sync",
     recordedAt: "2026-09-23T10:00",
     createdAt: "2026-09-23T10:46:00+05:00",
     status: "approved",
@@ -84,7 +84,7 @@ export const seededMeetings: DemoMeeting[] = [
     assignments: [
       {
         id: "task-review-ui",
-        title: "Завершить интерфейс проверки протокола",
+        title: "Finish the protocol review interface",
         assignee: "Влад",
         dueDate: "2026-09-25",
         status: "in_progress",
@@ -93,7 +93,7 @@ export const seededMeetings: DemoMeeting[] = [
       },
       {
         id: "task-api-contract",
-        title: "Подготовить контракт meeting API",
+        title: "Prepare the meeting API contract",
         assignee: "Ернур",
         dueDate: "2026-09-24",
         status: "open",
@@ -102,7 +102,7 @@ export const seededMeetings: DemoMeeting[] = [
       },
       {
         id: "task-mixed-recording",
-        title: "Подготовить смешанную тестовую запись",
+        title: "Prepare a mixed-language test recording",
         assignee: "Ерасыл",
         dueDate: "2026-09-24",
         status: "completed",
@@ -113,7 +113,7 @@ export const seededMeetings: DemoMeeting[] = [
   },
   {
     id: "budget-review",
-    title: "Обсуждение бюджета пилота",
+    title: "Pilot budget review",
     recordedAt: "2026-09-22T15:30",
     createdAt: "2026-09-22T16:18:00+05:00",
     status: "review_required",
@@ -131,26 +131,42 @@ export const seededMeetings: DemoMeeting[] = [
         time: "00:11:20",
         text: "Нужно уточнить стоимость дополнительной GPU-сессии до следующей встречи.",
       },
+      {
+        id: "budget-tr-2",
+        speaker: "Влад",
+        time: "00:18:46",
+        text: "Зафиксируем лимит временного хранения до финальной оценки инфраструктуры.",
+      },
     ],
     assignments: [
       {
         id: "task-gpu-cost",
-        title: "Уточнить стоимость дополнительной GPU-сессии",
+        title: "Confirm the cost of an additional GPU session",
         assignee: null,
         dueDate: null,
         status: "open",
         evidence: "Нужно уточнить стоимость дополнительной GPU-сессии…",
         time: "00:11:20",
       },
+      {
+        id: "task-storage-limit",
+        title: "Confirm the temporary storage limit",
+        assignee: "Алия",
+        dueDate: "2026-09-26",
+        status: "open",
+        evidence:
+          "Зафиксируем лимит временного хранения до финальной оценки инфраструктуры.",
+        time: "00:18:46",
+      },
     ],
   },
   {
     id: "customer-interview",
-    title: "Интервью с заказчиком",
+    title: "Customer interview",
     recordedAt: "2026-09-23T12:10",
     createdAt: "2026-09-23T12:54:00+05:00",
-    status: "processing",
-    processingStage: "Диаризация спикеров",
+    status: "queued",
+    processingStage: null,
     language: "auto",
     participantNames: ["Алия", "Заказчик"],
     audioFileName: "customer-interview.mp3",
