@@ -1,0 +1,88 @@
+{
+  "scope": "Supplied ZIP artifacts, not a fresh inference benchmark",
+  "records": [
+    {
+      "meeting": 1,
+      "audio_duration_seconds": 274.25,
+      "audio_sha256": "0f18f11a6f65f9a2bad6497f387b224c775885a03a811edf3fb15c5238db6f54",
+      "provenance_audio_matches": true,
+      "output_file_sha256": {
+        "transcript.json": "d5cde9bb0c2a9d27147da24fb0dd1a12ef811cc7fa50898c25df1616957a5133",
+        "abstraction.json": "ea93249b7aac3fdf1a795b63160a11946de7c0ab70ef3a240a083acc75755678",
+        "summary.md": "a15bc4f47a5647780c82ad3246b16ac3d0dac3d0a00e9eee599a2a2985f76a7a",
+        "provenance.json": "b7d580928eb01066963f457dc709223a6e79e38475f9a4206d736685805f20a8"
+      },
+      "utterances": 58,
+      "speaker_labels": 4,
+      "participants": [],
+      "meeting_at": null,
+      "facts": 7,
+      "decisions": 2,
+      "tasks": 10,
+      "null_responsible": 5,
+      "null_due_date": 10,
+      "tasks_needing_review": 10,
+      "all_items_needing_review": 19,
+      "validation_warnings": [
+        "Dropped decisions[0] without evidence: evidence quote is absent from cited utterances: предлагаю провести совместное совещание с институтом до конца недели и зафиксировать финальный график поставок также считаю нужным подключить юридический департамент для проверки штрафных санкций по текущему контракту",
+        "Dropped decisions[2] without evidence: evidence quote is absent from cited utterances: так проверьте мне нужен полный аудит две недели вам достаточно"
+      ],
+      "models": {
+        "diarization": {
+          "repo": "pyannote/speaker-diarization-community-1",
+          "sha": "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+        },
+        "gigaam-large-ctc": {
+          "repo": "ai-sage/GigaAM-Multilingual",
+          "sha": "3905cd51c3ed4e88c8edf33f3302969ba480a327"
+        },
+        "qwen3.5-9b": {
+          "repo": "Qwen/Qwen3.5-9B",
+          "sha": "c202236235762e1c871ad0ccb60c8ee5ba337b9a"
+        }
+      }
+    },
+    {
+      "meeting": 2,
+      "audio_duration_seconds": 206.03125,
+      "audio_sha256": "b7a42833d0691b99af300a24c7dcdeaf05378355633fb867ef6bfc9e2a8f8f46",
+      "provenance_audio_matches": true,
+      "output_file_sha256": {
+        "transcript.json": "311ff60f5cf808b41bfbfb1f5befeb523026ca799f6fb8aadf2d1079a14fe01d",
+        "abstraction.json": "cd89914eaacea46f8443460f6c0bc962aa68e4b8d4d08854eee4a4b7ba99f392",
+        "summary.md": "75489461e0a1b17fd405521abe0e41c74ed2e7a1bf192bfab6af4cddf9a8f7a5",
+        "provenance.json": "f50df90fc30fb12492bffd61491cb9a656de6845a62e6f73e4750e4398f966cc"
+      },
+      "utterances": 50,
+      "speaker_labels": 5,
+      "participants": [],
+      "meeting_at": null,
+      "facts": 10,
+      "decisions": 8,
+      "tasks": 8,
+      "null_responsible": 3,
+      "null_due_date": 8,
+      "tasks_needing_review": 8,
+      "all_items_needing_review": 26,
+      "validation_warnings": [
+        "Dropped key_facts[6] without evidence: evidence quote is absent from cited utterances: по травматизму и промбезопасности показатель в норме серьезных инцидентов за месяц не было",
+        "Dropped decisions[5] without evidence: evidence quote is absent from cited utterances: за неделю дам смету подоп группам",
+        "Dropped tasks[5] without evidence: evidence quote is absent from cited utterances: за неделю дам смету подоп группам"
+      ],
+      "models": {
+        "diarization": {
+          "repo": "pyannote/speaker-diarization-community-1",
+          "sha": "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+        },
+        "gigaam-large-ctc": {
+          "repo": "ai-sage/GigaAM-Multilingual",
+          "sha": "3905cd51c3ed4e88c8edf33f3302969ba480a327"
+        },
+        "qwen3.5-9b": {
+          "repo": "Qwen/Qwen3.5-9B",
+          "sha": "c202236235762e1c871ad0ccb60c8ee5ba337b9a"
+        }
+      }
+    }
+  ]
+}

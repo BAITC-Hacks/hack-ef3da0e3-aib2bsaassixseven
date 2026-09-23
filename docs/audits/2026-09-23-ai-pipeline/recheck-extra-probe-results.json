@@ -1,0 +1,85 @@
+{
+  "dates": {
+    "\u0434\u043e 2 \u043e\u043a\u0442\u044f\u0431\u0440\u044f 2027 \u0433\u043e\u0434\u0430": {
+      "date": "None",
+      "uncertain": true
+    },
+    "\u043d\u0435 2 \u043e\u043a\u0442\u044f\u0431\u0440\u044f, \u0430 5 \u043e\u043a\u0442\u044f\u0431\u0440\u044f": {
+      "date": "2026-10-02",
+      "uncertain": false
+    },
+    "\u043d\u0435 \u0447\u0435\u0440\u0435\u0437 \u0442\u0440\u0438 \u0434\u043d\u044f, \u0430 \u0447\u0435\u0440\u0435\u0437 \u043f\u044f\u0442\u044c \u0434\u043d\u0435\u0439": {
+      "date": "2026-09-26",
+      "uncertain": false
+    },
+    "\u043d\u0435 2026-10-02, \u0430 2026-10-05": {
+      "date": "None",
+      "uncertain": true
+    },
+    "\u043d\u0435 2026-10-02, \u0430 5 \u043e\u043a\u0442\u044f\u0431\u0440\u044f": {
+      "date": "2026-10-02",
+      "uncertain": false
+    },
+    "\u0441 2 \u043e\u043a\u0442\u044f\u0431\u0440\u044f \u043f\u043e 5 \u043e\u043a\u0442\u044f\u0431\u0440\u044f": {
+      "date": "2026-10-02",
+      "uncertain": false
+    }
+  },
+  "negated_action_only": {
+    "reference_tasks": 1,
+    "missed_tasks": 0,
+    "false_positive_tasks": 0,
+    "responsible_errors": 0,
+    "deadline_errors": 0
+  },
+  "same_relative_deadline_different_wording": {
+    "reference_tasks": 1,
+    "missed_tasks": 0,
+    "false_positive_tasks": 0,
+    "responsible_errors": 0,
+    "deadline_errors": 1
+  },
+  "distant_reviewed_name_current_turn_topic_change": {
+    "owner": "\u0422\u0438\u043c\u0443\u0440 \u0411\u043e\u043b\u0430\u0442\u043e\u0432\u0438\u0447",
+    "sources": [
+      "u00001",
+      "r00001"
+    ],
+    "needs_review": true
+  },
+  "explicit_non_cancellation_remaining_tasks": 0,
+  "same-path": {
+    "exception": "SameFileError",
+    "written_files": [
+      "abstraction.json",
+      "reviewed_corrections.json",
+      "summary.md",
+      "transcript.json"
+    ]
+  },
+  "mutation": {
+    "exception": null,
+    "written_files": [
+      "abstraction.json",
+      "provenance.json",
+      "reviewed_corrections.json",
+      "summary.md",
+      "transcript.json"
+    ],
+    "original_hash": "94fa51030638dacaa7e8b8e0076515ac8b36f1f016f3455fc205874da90c399d",
+    "declared_hash": "94fa51030638dacaa7e8b8e0076515ac8b36f1f016f3455fc205874da90c399d",
+    "copied_hash": "bba238e8e7b44b69c3913e1e38fbe91efbc4b4390638b33c7881b6dea86a787b",
+    "manifest_hash_matches": false
+  },
+  "stale": {
+    "exception": null,
+    "written_files": [
+      "abstraction.json",
+      "provenance.json",
+      "reviewed_corrections.json",
+      "summary.md",
+      "transcript.json"
+    ],
+    "correction_in_provenance": false
+  }
+}
