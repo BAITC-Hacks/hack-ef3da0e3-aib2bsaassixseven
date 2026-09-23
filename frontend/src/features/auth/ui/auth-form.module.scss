@@ -1,7 +1,7 @@
 @use "../../../styles/tokens" as tokens;
 
 .auth {
-  margin-top: tokens.$space-8;
+  margin-top: clamp(1.5rem, 3.5vh, 2rem);
 }
 
 .tabs {
@@ -16,6 +16,9 @@
     background: transparent;
     color: #929198;
     cursor: pointer;
+    transition:
+      border-color 160ms ease,
+      color 160ms ease;
 
     &[aria-pressed="true"] {
       border-bottom-color: #d8c9a5;
@@ -26,8 +29,8 @@
 
 .form {
   display: grid;
-  gap: tokens.$space-4;
-  margin-top: tokens.$space-6;
+  gap: tokens.$space-3;
+  margin-top: tokens.$space-5;
 
   label {
     display: grid;
@@ -42,8 +45,22 @@
     padding: 0 tokens.$space-3;
     border: 1px solid #414149;
     border-radius: tokens.$radius-medium;
-    background: #111115;
+    background: rgba(8, 8, 11, 0.58);
     color: #ffffff;
+    transition:
+      border-color 160ms ease,
+      background-color 160ms ease,
+      box-shadow 160ms ease;
+
+    &:hover {
+      border-color: #55555e;
+    }
+
+    &:focus {
+      border-color: rgba(216, 201, 165, 0.72);
+      background: rgba(8, 8, 11, 0.76);
+      box-shadow: 0 0 0 3px rgba(216, 201, 165, 0.08);
+    }
   }
 }
 
@@ -54,12 +71,26 @@
   border-radius: tokens.$radius-medium;
   cursor: pointer;
   font-weight: 650;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease;
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
 }
 
 .submit {
   margin-top: tokens.$space-2;
   background: #d8c9a5;
   color: #1b1915;
+
+  &:hover:not(:disabled) {
+    background: #e3d6b6;
+  }
 
   &:disabled {
     cursor: wait;
@@ -81,8 +112,8 @@
 .demo {
   display: grid;
   gap: tokens.$space-3;
-  margin-top: tokens.$space-6;
-  padding-top: tokens.$space-5;
+  margin-top: tokens.$space-5;
+  padding-top: tokens.$space-4;
   border-top: 1px solid #36363d;
 
   p {
@@ -94,7 +125,12 @@
 
   button {
     border: 1px solid #484850;
-    background: transparent;
+    background: rgba(17, 17, 21, 0.22);
     color: #f4f3ef;
+
+    &:hover {
+      border-color: #62626c;
+      background: rgba(255, 255, 255, 0.045);
+    }
   }
 }

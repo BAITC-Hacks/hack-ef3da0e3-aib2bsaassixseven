@@ -20,7 +20,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Keep the browser free of model inference, storage credentials, and secrets.
 - All audio and transcript operations go through the self-hosted backend.
 - Preserve source segment IDs and confidence/review states in assignment UI.
-- User-facing product copy is Russian-first and must support Kazakh text.
+- User-interface chrome is English-only; meeting titles, participant names,
+  transcripts, evidence, summaries, and assignments must preserve Russian,
+  Kazakh, and mixed-language text.
 - Do not infer visual requirements beyond `docs/design-references/README.md`.
 - Avoid decorative gradients, glass panels, oversized radii, and generic KPI
   card grids. Build direct, accessible product interfaces.

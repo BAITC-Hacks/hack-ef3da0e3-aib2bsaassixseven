@@ -19,7 +19,6 @@ import { seededMeetings } from "@/features/demo-workspace/model/demo-data";
 export type NewMeetingInput = {
   title: string;
   recordedAt: string;
-  language: DemoMeeting["language"];
   participantNames: string[];
   audioFileName: string;
 };
@@ -82,8 +81,8 @@ export function DemoWorkspaceProvider({
           recordedAt: input.recordedAt,
           createdAt: new Date().toISOString(),
           status: "processing",
-          processingStage: "Загрузка на NVIDIA-сервер",
-          language: input.language,
+          processingStage: "Uploading to the NVIDIA server",
+          language: "auto",
           participantNames: input.participantNames,
           audioFileName: input.audioFileName,
           duration: null,
@@ -99,7 +98,7 @@ export function DemoWorkspaceProvider({
             setMeetings((current) =>
               current.map((item) =>
                 item.id === id
-                  ? { ...item, processingStage: "Транскрибация записи" }
+                  ? { ...item, processingStage: "Transcribing the recording" }
                   : item,
               ),
             );
@@ -108,7 +107,7 @@ export function DemoWorkspaceProvider({
             setMeetings((current) =>
               current.map((item) =>
                 item.id === id
-                  ? { ...item, processingStage: "Извлечение поручений" }
+                  ? { ...item, processingStage: "Extracting assignments" }
                   : item,
               ),
             );

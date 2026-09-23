@@ -111,7 +111,7 @@ const fragmentShaderSource = `
   void main() {
     vec2 uv = gl_FragCoord.xy / u_resolution;
     vec2 point = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);
-    float time = u_time * 0.025;
+    float time = u_time * 0.04;
 
     vec2 pointerPoint = (u_pointer * u_resolution - 0.5 * u_resolution) /
       min(u_resolution.x, u_resolution.y);

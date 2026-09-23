@@ -7,9 +7,9 @@ import { DitheredShaderBackground } from "@/features/landing/components/dithered
 import styles from "./page.module.scss";
 
 export const metadata: Metadata = {
-  title: "Главная",
+  title: "Home",
   description:
-    "Локальная обработка совещаний, расшифровка и подготовка протоколов.",
+    "Private meeting transcription, review, and approved minutes on infrastructure you control.",
 };
 
 export default function HomePage() {

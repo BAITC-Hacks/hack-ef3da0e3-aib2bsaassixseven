@@ -30,20 +30,20 @@ export function AuthForm({
 
   return (
     <div className={styles.auth}>
-      <div className={styles.tabs} aria-label="Режим входа">
+      <div className={styles.tabs} aria-label="Authentication mode">
         <button
           aria-pressed={mode === "sign-in"}
           onClick={() => setMode("sign-in")}
           type="button"
         >
-          Войти
+          Sign in
         </button>
         <button
           aria-pressed={mode === "sign-up"}
           onClick={() => setMode("sign-up")}
           type="button"
         >
-          Регистрация
+          Sign up
         </button>
       </div>
 
@@ -53,7 +53,7 @@ export function AuthForm({
       >
         {mode === "sign-up" ? (
           <label>
-            Имя
+            Name
             <input autoComplete="name" name="displayName" type="text" />
           </label>
         ) : null}
@@ -62,7 +62,7 @@ export function AuthForm({
           <input autoComplete="email" name="email" required type="email" />
         </label>
         <label>
-          Пароль
+          Password
           <input
             autoComplete={
               mode === "sign-in" ? "current-password" : "new-password"
@@ -75,10 +75,10 @@ export function AuthForm({
         </label>
         <button className={styles.submit} disabled={pending} type="submit">
           {pending
-            ? "Проверяем…"
+            ? "Checking…"
             : mode === "sign-in"
-              ? "Войти"
-              : "Создать аккаунт"}
+              ? "Sign in"
+              : "Create account"}
         </button>
         <p
           aria-live="polite"
@@ -92,8 +92,8 @@ export function AuthForm({
 
       {allowDemo ? (
         <form action={continueDemo} className={styles.demo}>
-          <p>Supabase не настроен — можно проверить весь интерфейс локально.</p>
-          <button type="submit">Продолжить в демо-режиме</button>
+          <p>Supabase is not configured. You can explore the full interface locally.</p>
+          <button type="submit">Continue in demo mode</button>
         </form>
       ) : null}
     </div>

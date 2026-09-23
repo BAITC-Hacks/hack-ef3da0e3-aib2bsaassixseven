@@ -1,49 +1,59 @@
 @use "../../../styles/tokens" as tokens;
 
-.newMeeting,
-.signOut {
-  min-height: 2.25rem;
+.newMeeting {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: tokens.$space-2;
+  min-height: 2.5rem;
   padding: 0 tokens.$space-3;
+  border: 1px solid var(--color-border-strong);
   border-radius: tokens.$radius-small;
+  background: var(--color-action-surface);
+  color: var(--color-text);
   cursor: pointer;
   font-size: 0.8125rem;
-}
-
-.newMeeting {
-  border: 1px solid #d8c9a5;
-  background: #d8c9a5;
-  color: #1d1b17;
   font-weight: 650;
-}
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
 
-.profile {
-  display: flex;
-  align-items: center;
-  gap: tokens.$space-2;
-  color: #dedde0;
-  font-size: 0.8125rem;
+  &:hover {
+    border-color: var(--color-border-hover);
+    background: var(--color-action-surface-hover);
+  }
 
-  > span:first-child {
-    display: grid;
-    width: 1.8rem;
-    height: 1.8rem;
-    place-items: center;
-    border: 1px solid #4b4a51;
-    border-radius: 50%;
-    background: #26262c;
+  &:active {
+    background: var(--color-surface);
   }
 }
 
-.signOut {
-  border: 0;
-  background: transparent;
-  color: #96959d;
+.addIcon {
+  color: var(--color-text-muted);
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1;
 }
 
-@media (max-width: 60rem) {
-  .profileName,
-  .signOut {
-    display: none;
+.profile {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
+
+  &:hover {
+    border-color: #565b5d;
+    background: var(--color-surface-muted);
   }
 }
 
@@ -51,9 +61,5 @@
   .newMeeting {
     padding-inline: tokens.$space-2;
     font-size: 0.75rem;
-  }
-
-  .profile {
-    display: none;
   }
 }

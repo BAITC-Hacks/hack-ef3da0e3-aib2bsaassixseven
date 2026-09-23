@@ -1,9 +1,13 @@
 @use "../../../styles/tokens" as tokens;
 
 .page {
+  position: relative;
+  isolation: isolate;
   display: grid;
+  height: 100dvh;
   min-height: 100dvh;
-  background: #111115;
+  overflow: hidden;
+  background: #050506;
   color: #f4f3ef;
 
   @include tokens.tablet {
@@ -12,13 +16,24 @@
 }
 
 .panel {
+  position: relative;
+  z-index: 1;
   display: flex;
+  min-height: 100dvh;
+  overflow-y: auto;
   flex-direction: column;
   padding: tokens.$space-6;
-  background: #18181d;
-  border-right: 1px solid #2e2e35;
+  border-right: 1px solid rgba(255, 255, 255, 0.13);
+  background: rgba(18, 18, 23, 0.76);
+  box-shadow:
+    inset -1px 0 0 rgba(255, 255, 255, 0.035),
+    1.5rem 0 3.5rem rgba(0, 0, 0, 0.2);
+  -webkit-backdrop-filter: blur(1.75rem) saturate(112%);
+  backdrop-filter: blur(1.75rem) saturate(112%);
 
   @include tokens.tablet {
+    min-height: 0;
+    overflow: hidden;
     padding: tokens.$space-8;
   }
 }
@@ -30,7 +45,7 @@
 }
 
 .heading {
-  margin-top: clamp(5rem, 18vh, 9rem);
+  margin-top: clamp(2.5rem, 7vh, 4.5rem);
 
   h1 {
     margin: 0;
@@ -50,28 +65,46 @@
   display: none;
 
   @include tokens.tablet {
+    position: relative;
+    z-index: 0;
     display: flex;
+    overflow: hidden;
     flex-direction: column;
-    justify-content: flex-end;
+    justify-content: center;
     gap: tokens.$space-3;
-    padding: clamp(2rem, 6vw, 5rem);
-    background: #101014;
+    padding: clamp(2rem, 6vw, 5rem) clamp(2rem, 7vw, 7rem);
+    background: rgba(5, 5, 6, 0.18);
+    text-shadow: 0 1px 1.5rem rgba(0, 0, 0, 0.7);
 
     p,
     strong {
+      position: relative;
       max-width: 32rem;
       margin: 0;
     }
 
     p {
-      color: #8e8d95;
+      color: rgba(226, 226, 230, 0.68);
     }
 
     strong {
+      color: rgba(250, 250, 248, 0.96);
       font-size: clamp(1.4rem, 3vw, 2.4rem);
       font-weight: 500;
       letter-spacing: -0.035em;
       line-height: 1.2;
+      text-wrap: balance;
     }
+  }
+}
+
+@media (min-width: tokens.$breakpoint-tablet) and (max-height: 46rem) {
+  .panel {
+    overflow-y: auto;
+    padding-block: tokens.$space-5;
+  }
+
+  .heading {
+    margin-top: tokens.$space-6;
   }
 }

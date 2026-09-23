@@ -16,7 +16,7 @@ export async function getViewer(): Promise<Viewer | null> {
       return null;
     }
     return {
-      displayName: "Влад",
+      displayName: "Vlad",
       email: "demo@tirke.local",
       isDemo: true,
     };
@@ -40,7 +40,7 @@ export async function getViewer(): Promise<Viewer | null> {
       profile?.display_name ||
       user.user_metadata.display_name ||
       user.email?.split("@")[0] ||
-      "Пользователь",
+      "User",
     email: user.email ?? "",
     isDemo: false,
   };

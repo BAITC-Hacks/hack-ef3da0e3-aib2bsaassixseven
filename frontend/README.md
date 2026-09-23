@@ -14,7 +14,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-When Supabase credentials are absent, choose **Продолжить в демо-режиме** on
+When Supabase credentials are absent, choose **Continue in demo mode** on
 the login page. The demo covers creating and processing a meeting, reviewing
 the transcript and assignments, approval, sharing/printing, task tracking,
 deletion, and profile editing. Demo changes are intentionally in-memory until

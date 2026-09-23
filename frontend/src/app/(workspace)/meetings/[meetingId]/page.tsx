@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { MeetingDetailView } from "@/features/meetings/ui/meeting-detail-view";
 
-export const metadata: Metadata = { title: "Протокол совещания" };
+export const metadata: Metadata = { title: "Meeting minutes" };
 
 export default async function MeetingDetailPage({
   params,

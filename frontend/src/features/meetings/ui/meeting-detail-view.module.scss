@@ -41,12 +41,24 @@
   }
 
   > strong {
-    color: #356b54;
+    color: var(--color-status-closed);
     font-size: 0.8rem;
     font-weight: 650;
 
     &[data-status="review_required"] {
-      color: #8a5d18;
+      color: var(--color-status-progress);
+    }
+
+    &[data-status="processing"] {
+      color: var(--color-status-progress);
+    }
+
+    &[data-status="queued"] {
+      color: var(--color-status-future);
+    }
+
+    &[data-status="failed"] {
+      color: var(--color-status-failed);
     }
   }
 }
@@ -76,6 +88,14 @@
     background: var(--color-surface);
     cursor: pointer;
     font-size: 0.78rem;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease;
+
+    &:hover:not(:disabled) {
+      border-color: var(--color-border-strong);
+      background: var(--color-surface-muted);
+    }
 
     &:disabled {
       cursor: not-allowed;
@@ -99,8 +119,77 @@
 }
 
 .warning {
-  border-left-color: #a87824;
-  color: #674b1e;
+  border-left-color: var(--color-accent);
+  color: var(--color-text);
+}
+
+.tabToolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: tokens.$space-5;
+  margin-top: tokens.$space-8;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tabs {
+  display: flex;
+  min-width: 0;
+  gap: tokens.$space-6;
+  overflow-x: auto;
+}
+
+.tab {
+  flex: 0 0 auto;
+  min-height: 3rem;
+  margin-bottom: -1px;
+  padding: 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease;
+
+  &:hover {
+    color: var(--color-text);
+  }
+
+  &[aria-selected="true"] {
+    border-bottom-color: var(--color-text);
+    color: var(--color-text);
+  }
+}
+
+.download {
+  flex: 0 0 auto;
+  min-height: 2.4rem;
+  margin-bottom: tokens.$space-2;
+  padding: 0 tokens.$space-3;
+  border: 1px solid var(--color-border-strong);
+  border-radius: tokens.$radius-small;
+  background: var(--color-action-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 620;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+
+  &:hover:not(:disabled) {
+    border-color: var(--color-border-hover);
+    background: var(--color-action-surface-hover);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.42;
+  }
 }
 
 .section {
@@ -124,6 +213,14 @@
   }
 }
 
+.tabPanel {
+  margin-top: tokens.$space-6;
+}
+
+.tabPanelHidden {
+  display: none;
+}
+
 .sectionHeader {
   display: flex;
   align-items: center;
@@ -133,12 +230,23 @@
   border-bottom: 1px solid var(--color-border);
 
   button {
-    border: 0;
-    background: transparent;
-    color: var(--color-accent);
+    min-height: 2.25rem;
+    padding: 0 tokens.$space-3;
+    border: 1px solid var(--color-border-strong);
+    border-radius: tokens.$radius-small;
+    background: var(--color-action-surface);
+    color: var(--color-text);
     cursor: pointer;
     font-size: 0.8rem;
     font-weight: 650;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease;
+
+    &:hover {
+      border-color: var(--color-border-hover);
+      background: var(--color-action-surface-hover);
+    }
   }
 }
 
@@ -259,12 +367,20 @@
   button {
     min-height: 2.5rem;
     padding: 0 tokens.$space-4;
-    border: 1px solid var(--color-accent);
+    border: 1px solid var(--color-border-strong);
     border-radius: tokens.$radius-small;
-    background: var(--color-accent);
-    color: var(--color-accent-contrast);
+    background: var(--color-action-surface);
+    color: var(--color-text);
     cursor: pointer;
     font-weight: 650;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease;
+
+    &:hover {
+      border-color: var(--color-border-hover);
+      background: var(--color-action-surface-hover);
+    }
   }
 }
 
@@ -303,7 +419,7 @@
   }
 
   li[data-complete] {
-    color: #356b54;
+    color: var(--color-status-closed);
   }
 
   li[data-active] {
@@ -318,6 +434,21 @@
 }
 
 @media (max-width: 48rem) {
+  .tabToolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: tokens.$space-2;
+  }
+
+  .tabs {
+    order: 2;
+  }
+
+  .download {
+    align-self: flex-start;
+    margin-bottom: 0;
+  }
+
   .assignment {
     grid-template-columns: 1fr;
 
@@ -337,9 +468,14 @@
   .message,
   .warning,
   .approvalBar,
+  .tabToolbar,
   .sectionHeader button,
   .removeTask {
     display: none;
+  }
+
+  .tabPanelHidden {
+    display: block;
   }
 
   .detail {

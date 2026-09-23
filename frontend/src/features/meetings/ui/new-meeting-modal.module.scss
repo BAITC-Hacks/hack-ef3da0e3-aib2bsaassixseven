@@ -45,14 +45,26 @@
 }
 
 .close {
+  flex: 0 0 auto;
   width: 2rem;
   height: 2rem;
-  border: 0;
+  border: 1px solid transparent;
+  border-radius: tokens.$radius-small;
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
   font-size: 1.5rem;
   line-height: 1;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+
+  &:hover {
+    border-color: var(--color-border);
+    background: var(--color-surface-muted);
+    color: var(--color-text);
+  }
 }
 
 .form {
@@ -71,31 +83,26 @@
 .columns label {
   display: grid;
   gap: tokens.$space-2;
-  color: #45443f;
+  color: var(--color-text-muted);
   font-size: 0.8125rem;
   font-weight: 600;
 }
 
-.columns input,
-.columns select,
-.columns textarea {
+.columns input {
   width: 100%;
   min-height: 2.6rem;
   padding: tokens.$space-2 tokens.$space-3;
   border: 1px solid var(--color-border);
   border-radius: tokens.$radius-small;
-  background: #ffffff;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
   font-weight: 400;
-}
-
-.columns textarea {
-  resize: vertical;
 }
 
 .columns input[type="file"] {
   padding: tokens.$space-3;
   border-style: dashed;
-  background: #fafaf8;
+  background: var(--color-surface);
 }
 
 .columns label > span {
@@ -106,6 +113,111 @@
 
 .fullWidth {
   grid-column: 1 / -1;
+}
+
+.dateField,
+.participants {
+  grid-column: 1 / -1;
+}
+
+.participants {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+
+  legend {
+    padding: 0;
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  > p {
+    margin: tokens.$space-1 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    line-height: 1.45;
+  }
+}
+
+.participantList {
+  display: grid;
+  gap: tokens.$space-2;
+  margin-top: tokens.$space-2;
+}
+
+.participantRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: tokens.$space-2;
+}
+
+.usernameInput {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 2.6rem;
+  padding-left: tokens.$space-3;
+  border: 1px solid var(--color-border);
+  border-radius: tokens.$radius-small;
+  background: var(--color-surface-muted);
+  transition: border-color 150ms ease;
+
+  &:focus-within {
+    border-color: var(--color-border-strong);
+  }
+
+  > span {
+    flex: 0 0 auto;
+    color: var(--color-text-muted);
+  }
+
+  input {
+    min-width: 0;
+    padding-left: tokens.$space-1;
+    border: 0;
+    background: transparent;
+    outline: 0;
+  }
+}
+
+.participantControls {
+  display: flex;
+  gap: tokens.$space-2;
+}
+
+.participantControl {
+  display: grid;
+  width: 2.6rem;
+  min-height: 2.6rem;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: tokens.$radius-small;
+  background: var(--color-action-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 1.05rem;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+
+  &:hover {
+    border-color: var(--color-border-hover);
+    background: var(--color-action-surface-hover);
+  }
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .consent {
@@ -137,14 +249,28 @@
     padding: 0 tokens.$space-4;
     border: 1px solid var(--color-border);
     border-radius: tokens.$radius-small;
-    background: #ffffff;
+    background: var(--color-surface);
+    color: var(--color-text);
     cursor: pointer;
     font-weight: 600;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease;
+
+    &:hover {
+      border-color: var(--color-border-strong);
+      background: var(--color-surface-muted);
+    }
   }
 
   .primary {
-    border-color: var(--color-accent);
-    background: var(--color-accent);
-    color: var(--color-accent-contrast);
+    border-color: var(--color-border-strong);
+    background: var(--color-action-surface);
+    color: var(--color-text);
+
+    &:hover {
+      border-color: var(--color-border-hover);
+      background: var(--color-action-surface-hover);
+    }
   }
 }
