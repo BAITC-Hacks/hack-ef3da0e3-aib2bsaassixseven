@@ -2,6 +2,26 @@
 
 AIB2BSaaSSixSeven hackathon team repository.
 
+Hackalem is a local-first meeting intelligence prototype. Its target MVP turns
+an uploaded Russian, Kazakh, or mixed-language meeting recording into a
+speaker-attributed transcript, reviewable summary and action items with source
+timestamps, followed by a human-approved PDF protocol.
+
+The meeting flow is currently documented but not yet implemented. The existing
+code is the authenticated FastAPI, Next.js, and Supabase starter on which the
+MVP will be built.
+
+## Product and architecture documentation
+
+- [Documentation index](docs/README.md)
+- [Product requirements](docs/product/PRD.md)
+- [Target users](docs/product/TARGET_USERS.md)
+- [Demo flow](docs/product/DEMO_FLOW.md)
+- [Technical requirements](docs/technical/TRD.md)
+- [Architecture](docs/technical/ARCHITECTURE.md)
+- [Planned API contract](docs/technical/API_CONTRACT.md)
+- [MVP design specification](docs/superpowers/specs/2026-09-23-meeting-intelligence-mvp-design.md)
+
 A hackathon-ready full-stack starter built with Next.js 16, FastAPI, and
 Supabase. It includes email authentication, a protected dashboard, verified
 JWTs, user-scoped database access, Row Level Security, tests, and CI.
@@ -169,6 +189,11 @@ docs/superpowers/         Architecture spec and implementation plan
 ```
 
 ## Deployment
+
+The deployment notes below describe the existing authenticated starter. The
+planned meeting MVP is local-first and additionally requires a persistent
+shared `data/` volume plus a worker process; it is not implemented or ready for
+serverless deployment yet.
 
 Deploy `frontend/` to Vercel (or another Next.js host) and `backend/` to an ASGI
 host. Configure the same Supabase project in both deployments, set
