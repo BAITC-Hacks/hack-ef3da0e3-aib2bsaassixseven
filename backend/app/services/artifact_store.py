@@ -5,13 +5,16 @@ write-once; identical publication retries are safe. A verified manifest is the
 commit marker. Callers must map these exceptions to safe public error codes.
 """
 
+import fcntl
 import hashlib
 import io
 import os
+import shutil
 import stat
 import tempfile
 import time
-from contextlib import suppress
+from collections.abc import Generator
+from contextlib import contextmanager, suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import BinaryIO
@@ -373,6 +376,11 @@ class LocalArtifactStore:
             raise FileNotFoundError("Temporary source unavailable")
         return self._check(self._folder(owner_id, meeting_id) / "upload.bin")
 
+    def upload_present(self, owner_id: UUID, meeting_id: UUID) -> bool:
+        """Check physical source presence even after the upload TTL."""
+        self.read_record(owner_id, meeting_id)
+        return self._check(self._folder(owner_id, meeting_id) / "upload.bin").exists()
+
     def delete_upload(self, owner_id: UUID, meeting_id: UUID) -> None:
         """Remove and durably sync the upload; caller tracks cleanup state.
 
@@ -383,6 +391,44 @@ class LocalArtifactStore:
         folder = self._folder(owner_id, meeting_id)
         self._check(folder / "upload.bin").unlink(missing_ok=True)
         self._sync_directory(folder)
+
+    @contextmanager
+    def lifecycle_lock(self, owner_id: UUID, meeting_id: UUID) -> Generator[None]:
+        """Serialize owner-authorized retry/delete requests across API workers."""
+        self.read_record(owner_id, meeting_id)
+        path = self._check(self._folder(owner_id, meeting_id) / ".lifecycle.lock")
+        fd = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        try:
+            if not stat.S_ISREG(os.fstat(fd).st_mode):
+                raise UnsafePath("Non-regular lifecycle lock")
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            os.close(fd)
+
+    def delete_meeting(self, owner_id: UUID, meeting_id: UUID) -> None:
+        """Durably hide a completed meeting, then remove its local artifacts.
+
+        A private tombstone survives interrupted physical removal. A later
+        housekeeping sweep may finish removing it without exposing the meeting.
+        """
+        self.read_record(owner_id, meeting_id)
+        folder = self._folder(owner_id, meeting_id)
+        tombstone = self._check(folder.parent / f".deleted-{meeting_id}-{uuid4()}")
+        os.rename(folder, tombstone)
+        try:
+            self._sync_directory(folder.parent)
+        except OSError:
+            os.rename(tombstone, folder)
+            self._sync_directory(folder.parent)
+            raise
+        try:
+            shutil.rmtree(tombstone)
+            self._sync_directory(folder.parent)
+        except OSError:
+            # The logical deletion is durable. Physical removal is retried by
+            # periodic maintenance; never restore a partially deleted folder.
+            pass
 
     def publish_results(
         self, owner_id: UUID, meeting_id: UUID, bundle: ResultBundleV1

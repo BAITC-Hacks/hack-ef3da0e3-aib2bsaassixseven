@@ -24,6 +24,9 @@ from app.services.artifact_store import (
     MeetingNotFound,
     UnsafePath,
 )
+from app.services.lifecycle import LifecycleConflict
+from app.services.lifecycle import delete_meeting as delete_lifecycle
+from app.services.lifecycle import retry_meeting as retry_lifecycle
 from app.services.uploads import UploadError, parse_upload, stage_and_validate
 
 router = APIRouter(prefix="/meetings", tags=["meetings"])
@@ -56,6 +59,10 @@ def _error(status_code: int, code: str) -> MeetingApiError:
         "file_too_large": "Файл слишком большой",
         "unsupported_media_type": "Неподдерживаемый формат аудио",
         "storage_failed": "Не удалось сохранить данные",
+        "attempts_exhausted": "Достигнут лимит попыток обработки",
+        "source_expired": "Загрузите запись повторно",
+        "cleanup_pending": "Очистка временных данных ещё не завершена",
+        "delete_failed": "Не удалось удалить встречу",
     }
     return MeetingApiError(status_code, code, details[code])
 
@@ -177,6 +184,40 @@ async def get_meeting(
         raise _error(404, "meeting_not_found") from error
     except (OSError, ArtifactIntegrityError, UnsafePath) as error:
         raise _error(503, "storage_failed") from error
+
+
+@router.post("/{meeting_id}/retry", response_model=Meeting, status_code=202)
+async def retry_meeting(
+    meeting_id: str,
+    user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    store: Annotated[LocalArtifactStore, Depends(get_artifact_store)],
+) -> Meeting:
+    try:
+        return await asyncio.to_thread(
+            retry_lifecycle, store, user.id, _parse_id(meeting_id)
+        )
+    except MeetingNotFound as error:
+        raise _error(404, "meeting_not_found") from error
+    except LifecycleConflict as error:
+        raise _error(409, error.code) from error
+    except (OSError, ArtifactIntegrityError, UnsafePath) as error:
+        raise _error(503, "storage_failed") from error
+
+
+@router.delete("/{meeting_id}", status_code=204)
+async def delete_meeting(
+    meeting_id: str,
+    user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    store: Annotated[LocalArtifactStore, Depends(get_artifact_store)],
+) -> None:
+    try:
+        await asyncio.to_thread(delete_lifecycle, store, user.id, _parse_id(meeting_id))
+    except MeetingNotFound as error:
+        raise _error(404, "meeting_not_found") from error
+    except LifecycleConflict as error:
+        raise _error(409, error.code) from error
+    except (OSError, ArtifactIntegrityError, UnsafePath) as error:
+        raise _error(503, "delete_failed") from error
 
 
 def _ready_results(
