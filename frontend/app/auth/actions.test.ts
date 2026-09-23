@@ -85,6 +85,23 @@ describe("auth actions", () => {
     });
   });
 
+  it("explains when an email is already registered", async () => {
+    auth.signUp.mockResolvedValue({
+      data: { session: null },
+      error: {
+        code: "user_already_exists",
+        message: "User already registered",
+      },
+    });
+
+    const result = await signUp(initialAuthState, credentials());
+
+    expect(result).toEqual({
+      status: "error",
+      message: "This email is already registered. Try signing in.",
+    });
+  });
+
   it("signs out and returns to the landing page", async () => {
     await signOut();
 

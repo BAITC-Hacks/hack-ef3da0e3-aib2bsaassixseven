@@ -5,6 +5,38 @@ import { redirect } from "next/navigation";
 import type { AuthActionState } from "@/app/auth/state";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
+type SupabaseAuthError = { code?: string; message?: string };
+
+function signUpErrorMessage(error: SupabaseAuthError): string {
+  const code = error.code?.toLowerCase();
+  const message = error.message?.toLowerCase() ?? "";
+
+  if (
+    code === "user_already_exists" ||
+    code === "email_exists" ||
+    message.includes("already registered") ||
+    message.includes("already exists")
+  ) {
+    return "This email is already registered. Try signing in.";
+  }
+  if (code === "signup_disabled") {
+    return "New account registration is disabled in Supabase Auth.";
+  }
+  if (code === "email_provider_disabled") {
+    return "Email sign-up is disabled in Supabase Auth.";
+  }
+  if (code === "over_email_send_rate_limit") {
+    return "Email sending is temporarily rate-limited. Try again later.";
+  }
+  if (code === "email_address_invalid") {
+    return "Supabase rejected this email address.";
+  }
+  if (code === "weak_password") {
+    return "Choose a stronger password and try again.";
+  }
+  return "Account creation failed. Check the email and Supabase Auth settings.";
+}
+
 function readCredentials(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -63,7 +95,7 @@ export async function signUp(
   });
 
   if (error) {
-    return { status: "error", message: "Account creation failed." };
+    return { status: "error", message: signUpErrorMessage(error) };
   }
   if (data.session) {
     redirect("/dashboard");

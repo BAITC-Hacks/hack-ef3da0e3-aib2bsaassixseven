@@ -17,7 +17,7 @@ extra_search_path = ["public", "extensions"]
 # for accidental or malicious requests.
 max_rows = 1000
 # Controls whether new tables, views, sequences and functions created in the `public` schema by
-# `postgres` are reachable through the Data API roles (`anon`, `authenticated`, `service_role`)
+# `postgres` are reachable through the Data API roles (`anon`, `authenticated`, server-only)
 # without explicit GRANTs, matching the cloud default. Set to `false` to require explicit GRANTs
 # instead. Left unset, a fresh project falls back to `true`.
 # auto_expose_new_tables = true
