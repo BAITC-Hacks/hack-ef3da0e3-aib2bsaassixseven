@@ -145,25 +145,35 @@ class MeetingCoordinator:
             meeting.status = "processing"
             meeting.stage = "uploading_to_gpu"
             self._save(record)
-            if record.audio_sha256 is None:
-                return self._fail(record, "source_expired")
-            try:
-                audio_path = self.store.upload_path(owner_id, meeting_id)
-            except FileNotFoundError:
-                return self._fail(record, "source_expired")
-            context = GPUContextV1(
-                schema_version=1,
-                meeting_id=meeting_id,
-                attempt=meeting.attempt,
-                meeting_date=meeting.meeting_date,
-                timezone=meeting.timezone,
-                participants=meeting.participants,
-                language_hint=meeting.language_hint,
-                audio_sha256=record.audio_sha256,
-            )
-            job.submit_started = True
-            self._save(record)
-            remote = await self.gpu.submit(audio_path, context)
+            remote = None
+            if job.submit_started is True:
+                try:
+                    remote = await self.gpu.get_job_by_key(meeting_id, meeting.attempt)
+                except GPUDomainError as error:
+                    if error.code == "submission_pending":
+                        return self.store.read_meeting(owner_id, meeting_id)
+                    if error.code != "job_not_found":
+                        raise
+            if remote is None:
+                if record.audio_sha256 is None:
+                    return self._fail(record, "source_expired")
+                try:
+                    audio_path = self.store.upload_path(owner_id, meeting_id)
+                except FileNotFoundError:
+                    return self._fail(record, "source_expired")
+                context = GPUContextV1(
+                    schema_version=1,
+                    meeting_id=meeting_id,
+                    attempt=meeting.attempt,
+                    meeting_date=meeting.meeting_date,
+                    timezone=meeting.timezone,
+                    participants=meeting.participants,
+                    language_hint=meeting.language_hint,
+                    audio_sha256=record.audio_sha256,
+                )
+                job.submit_started = True
+                self._save(record)
+                remote = await self.gpu.submit(audio_path, context)
         else:
             remote = await self.gpu.get_job(job.job_id)
         if job.job_id is not None and job.job_id != remote.job_id:

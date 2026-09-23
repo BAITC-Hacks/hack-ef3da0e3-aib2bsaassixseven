@@ -241,11 +241,14 @@ Meeting дополнительно возвращает `source_available: boole
 | Метод | Запрос | Успех / доменные ошибки |
 | --- | --- | --- |
 | `POST /jobs` | Multipart `audio` + `context` JSON; обязательный `Idempotency-Key: <meeting_id>:<attempt>`. | `202 JobV1` только после надёжного сохранения. Повтор того же ключа и содержимого: тот же job и текущий `JobV1`, без нового inference. Другое содержимое: `409 idempotency_conflict`. |
+| `GET /jobs/by-key/{meeting_id}/{attempt}` | Нет тела; идентификатор и номер попытки образуют исходный `Idempotency-Key`. | `200 JobV1` для принятого job или его квитанции; `409 submission_pending`, если ключ зарезервирован, но приём аудио ещё не завершён; `404 job_not_found`, если сервер не знает ключ. |
 | `GET /jobs/{job_id}` | Нет тела. | `200 JobV1`, включая квитанцию после очистки. |
 | `GET /jobs/{job_id}/result` | Нет тела. | `200 ResultBundleV1`; `409 result_not_ready` при queued/processing, `409 job_failed` при failed; `410 payload_deleted` после ACK, `410 source_expired` после TTL. |
 | `POST /jobs/{job_id}/ack` | JSON `{result_hash}`. | `200 AckV1` только после удаления; `409 result_not_ready` при queued/processing, `409 job_failed` при failed; после TTL — правила квитанции ниже; `409 result_hash_mismatch` при неверном хеше; `503 cleanup_failed` при незавершённом удалении. |
 
 Общие ошибки: `401 unauthorized`, `404 job_not_found`, `413 file_too_large`, `415 unsupported_media_type`, `422 invalid_request`, `503 queue_unavailable`. Неверные UUID, context, ключ или версия схемы — `422`. Внутренний `401` никогда не выдаётся браузеру как ошибка пользовательского входа; приложение показывает `gpu_unavailable`.
+
+GPU надёжно резервирует ключ до чтения тела аудио и до запуска inference. Одновременный submit того же ключа не создаёт второй job. Пока первичный upload идёт или его исход неизвестен, lookup возвращает `409 submission_pending`; после принятия возвращает `200 JobV1`. При обрыве upload резервирование разрешается в принятый job либо в достоверное отсутствие ключа до истечения исходного TTL; оно не должно оставаться вечно pending. GPU сохраняет ключ и квитанцию без содержимого встречи семь суток после подтверждённой очистки, чтобы lookup после рестарта не запустил повторный inference. Маршрут `by-key` должен распознаваться отдельно от `GET /jobs/{job_id}`.
 
 `context` содержит ровно поля примера ниже. `meeting_id`, `attempt` совпадают с ключом; остальные ограничения совпадают с публичной metadata. `audio_sha256` вычисляет coordinator по байтам audio, GPU проверяет его (`422 invalid_request` при расхождении). Идентичность запроса определяется хешем audio и всеми полями context; имя файла и multipart boundary не участвуют. Пример синтетический: audio hash соответствует тестовым байтам `abc`, не является допустимым аудиофайлом.
 
@@ -263,6 +266,8 @@ Meeting дополнительно возвращает `source_available: boole
 ```
 
 `JobV1` возвращает ровно поля следующего примера. `status` — `queued|processing|completed|failed|expired`. `stage` — `ingesting|transcribing|diarizing|analyzing` только при processing, иначе `null`; `failure` — `null` либо `{code, message}`. `result_hash` доступен после completed и сохраняется в квитанции; до результата — `null`. `expires_at` фиксируется при первом приёме (UTC + 24 часа); `receipt_expires_at` — `null` до очистки и время успешной очистки + 7 суток после неё. ACK сохраняет `status: completed`; TTL переводит ещё не очищенный job в expired. Уже удалённая по ACK квитанция остаётся completed/deleted до receipt_expires_at, исходный expires_at её не меняет. Сбой физической очистки оставляет cleanup pending, даже при status expired.
+
+`cleanup_status: deleted|expired` допускается только для терминального `status: completed|failed|expired` и требует ненулевой `receipt_expires_at`; `cleanup_status: pending` требует `receipt_expires_at: null`. Некорректный ответ не подтверждает очистку для backend.
 
 ```json
 {
@@ -333,7 +338,7 @@ GPU сначала надёжно фиксирует принятый хеш и 
 
 Повтор submit по сохранённому ключу после ACK возвращает `202 JobV1` той же completed-задачи, для expired-задачи — `410 source_expired`; изменение содержимого при существующем ключе всегда `409 idempotency_conflict`. Гарантия дедупликации действует до receipt_expires_at. Клиент не переиспользует ключи и не отправляет исходник после локального TTL. После удаления квитанции GET/result/ACK возвращают `404 job_not_found`: backend не считает это подтверждением удаления, сохраняет cleanup pending для сверки оператором. Нельзя переводить pending в deleted по timeout или одному 404.
 
-Перед TTL-очисткой GPU останавливает активный job и запрещает публикацию позднего результата. Истечение TTL независимо от ACK и доступности приложения. На restart coordinator продолжает submit/poll/result/ACK из manifest; повторное получение результата не запускает ML. Готовые локальные результаты и PDF остаются доступны при недоступном GPU и после TTL.
+Перед TTL-очисткой GPU останавливает активный job и запрещает публикацию позднего результата. Истечение TTL независимо от ACK и доступности приложения. На restart coordinator сначала ищет по ключу каждую начатую отправку без сохранённого `job_id`: `200` привязывает прежний job, `409 submission_pending` оставляет текущую попытку в ожидании, `404 job_not_found` допускает повтор submit только пока локальное аудио доступно до TTL. После TTL повтор submit запрещён; `404` не считается подтверждением удалённого GPU payload, cleanup остаётся pending, а встреча без результата получает `source_expired`. Повторное получение результата не запускает ML. Готовые локальные результаты и PDF остаются доступны при недоступном GPU и после TTL.
 
 Пример безопасной внутренней ошибки `503` (не подтверждает удаление):
 

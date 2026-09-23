@@ -72,6 +72,13 @@ class JobV1(StrictModel):
             raise ValueError("Completed GPU job requires result hash")
         if self.status in {"queued", "processing"} and self.result_hash is not None:
             raise ValueError("GPU job has result hash before completion")
+        if self.cleanup_status == "pending" and self.receipt_expires_at is not None:
+            raise ValueError("Pending GPU cleanup cannot have a receipt")
+        if self.cleanup_status != "pending" and (
+            self.receipt_expires_at is None
+            or self.status in {"queued", "processing"}
+        ):
+            raise ValueError("Confirmed GPU cleanup requires a terminal receipt")
         return self
 
 

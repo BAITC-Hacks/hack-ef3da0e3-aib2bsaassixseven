@@ -132,6 +132,45 @@ async def test_submit_exact_multipart_headers_and_stable_key(tmp_path: Path) -> 
 
 
 @pytest.mark.asyncio
+async def test_lookup_by_key_uses_authenticated_path_and_parses_job() -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert str(request.url) == (
+            f"https://gpu.example/internal/v1/jobs/by-key/{MEETING_ID}/2"
+        )
+        assert request.headers["authorization"] == "Bearer token"
+        assert request.read() == b""
+        return httpx.Response(200, json=job())
+
+    async with GPUClient(
+        "https://gpu.example", "token", transport=httpx.MockTransport(respond)
+    ) as client:
+        recovered = await client.get_job_by_key(MEETING_ID, 2)
+    assert recovered.job_id == JOB_ID
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("status", "code"), [(409, "submission_pending"), (404, "job_not_found")]
+)
+async def test_lookup_by_key_preserves_pending_and_missing_as_distinct_domain_errors(
+    status: int, code: str
+) -> None:
+    async with GPUClient(
+        "https://gpu.example",
+        "token",
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(
+                status, json={"detail": "safe", "code": code}
+            )
+        ),
+    ) as client:
+        with pytest.raises(GPUDomainError) as caught:
+            await client.get_job_by_key(MEETING_ID, 2)
+    assert (caught.value.status_code, caught.value.code) == (status, code)
+
+
+@pytest.mark.asyncio
 async def test_get_result_validates_raw_hash_and_schema() -> None:
     valid = bundle()
     assert valid["result_hash"] == HASH
@@ -214,6 +253,16 @@ async def test_job_rejects_extra_fields_and_invalid_state() -> None:
         await get({**job(), "internal_path": "/secret"})
     with pytest.raises(GPUProtocolError):
         await get({**job(), "status": "completed"})
+    with pytest.raises(GPUProtocolError):
+        await get({**job(), "cleanup_status": "deleted"})
+    with pytest.raises(GPUProtocolError):
+        await get(
+            {
+                **job(),
+                "cleanup_status": "expired",
+                "receipt_expires_at": "2026-09-30T09:05:00Z",
+            }
+        )
 
 
 @pytest.mark.asyncio

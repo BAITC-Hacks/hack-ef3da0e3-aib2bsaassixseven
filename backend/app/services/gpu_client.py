@@ -18,6 +18,7 @@ _DOMAIN_CODES: dict[int, frozenset[str]] = {
     409: frozenset(
         {
             "idempotency_conflict",
+            "submission_pending",
             "result_not_ready",
             "job_failed",
             "result_hash_mismatch",
@@ -127,6 +128,15 @@ class GPUClient:
         if job.job_id != job_id:
             raise GPUProtocolError()
         return job
+
+    async def get_job_by_key(self, meeting_id: UUID, attempt: int) -> JobV1:
+        response = await self._send(
+            self._client.build_request(
+                "GET", f"jobs/by-key/{meeting_id}/{attempt}"
+            ),
+            200,
+        )
+        return self._parse(response, JobV1)
 
     async def get_result(self, job_id: UUID) -> ResultBundleV1:
         response = await self._send(

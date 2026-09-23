@@ -12,7 +12,12 @@ from app.models.insights import ResultBundleV1
 from app.models.meeting import Failure, Meeting
 from app.services.artifact_store import LocalArtifactStore, MeetingNotFound
 from app.services.coordinator import CoordinatorStorageError, MeetingCoordinator
-from app.services.gpu_client import GPUClient, GPUDomainError, GPUUnavailable
+from app.services.gpu_client import (
+    GPUClient,
+    GPUDomainError,
+    GPUProtocolError,
+    GPUUnavailable,
+)
 from app.services.lifecycle import retry_meeting
 
 
@@ -32,6 +37,7 @@ class FakeGPUClient(GPUClient):
             receipt_expires_at=None,
         )
         self.error: Exception | None = None
+        self.lookup: JobV1 | Exception = GPUDomainError(404, "job_not_found")
         self.calls: list[str] = []
         self.contexts: list[GPUContextV1] = []
 
@@ -50,6 +56,14 @@ class FakeGPUClient(GPUClient):
         assert job_id == self.job.job_id
         self.check("poll")
         return self.job
+
+    async def get_job_by_key(self, meeting_id: UUID, attempt: int) -> JobV1:
+        assert meeting_id == self.result.transcript.meeting_id
+        assert attempt in {1, 2, 3}
+        self.calls.append("lookup")
+        if isinstance(self.lookup, Exception):
+            raise self.lookup
+        return self.lookup
 
     async def get_result(self, job_id: UUID) -> ResultBundleV1:
         assert job_id == self.job.job_id
@@ -103,6 +117,61 @@ async def test_submit_timeout_resumes_same_context_and_attempt(
     assert context.timezone == "Asia/Almaty"
     assert context.participants == ["Алия"]
     assert context.audio_sha256 == store.read_record(owner, meeting.id).audio_sha256
+    assert gpu.calls == ["submit", "lookup", "submit"]
+
+
+async def test_timeout_lookup_binds_existing_job_without_resubmitting_audio(
+    setup: tuple[LocalArtifactStore, UUID, Meeting, FakeGPUClient],
+) -> None:
+    store, owner, meeting, gpu = setup
+    gpu.error = GPUUnavailable("timeout")
+    await MeetingCoordinator(store, gpu).process_once(owner, meeting.id)
+    gpu.error = None
+    gpu.lookup = gpu.job
+
+    coordinator = MeetingCoordinator(LocalArtifactStore(store.root), gpu)
+    resumed = await coordinator.process_once(owner, meeting.id)
+
+    assert resumed.status == "processing"
+    assert store.read_record(owner, meeting.id).jobs[0].job_id == gpu.job.job_id
+    assert gpu.calls == ["submit", "lookup"]
+    assert len(gpu.contexts) == 1
+
+
+async def test_pending_reservation_waits_without_resubmitting_audio(
+    setup: tuple[LocalArtifactStore, UUID, Meeting, FakeGPUClient],
+) -> None:
+    store, owner, meeting, gpu = setup
+    gpu.error = GPUUnavailable("timeout")
+    await MeetingCoordinator(store, gpu).process_once(owner, meeting.id)
+    gpu.error = None
+    gpu.lookup = GPUDomainError(409, "submission_pending")
+
+    for _ in range(2):
+        result = await MeetingCoordinator(store, gpu).process_once(owner, meeting.id)
+        assert (result.status, result.stage) == ("processing", "uploading_to_gpu")
+    assert store.read_record(owner, meeting.id).jobs[0].job_id is None
+    assert gpu.calls == ["submit", "lookup", "lookup"]
+
+
+async def test_lookup_can_recover_completed_job_after_local_source_deadline(
+    setup: tuple[LocalArtifactStore, UUID, Meeting, FakeGPUClient],
+) -> None:
+    store, owner, meeting, gpu = setup
+    gpu.error = GPUUnavailable("timeout")
+    await MeetingCoordinator(store, gpu).process_once(owner, meeting.id)
+    gpu.error = None
+    complete(gpu)
+    gpu.lookup = gpu.job
+    record = store.read_record(owner, meeting.id)
+    record.meeting.temporary_expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    store.update_meeting(owner, record)
+
+    result = await MeetingCoordinator(store, gpu).process_once(owner, meeting.id)
+
+    assert result.status == "review_required"
+    assert store.read_results(owner, meeting.id)[0] == gpu.result.transcript
+    assert gpu.calls == ["submit", "lookup", "result", "ack"]
 
 
 @pytest.mark.parametrize(
@@ -287,7 +356,16 @@ async def test_expired_gpu_without_local_result_fails_safely(
     coordinator = MeetingCoordinator(store, gpu)
     await coordinator.process_once(owner, meeting.id)
     gpu.job = JobV1.model_validate(
-        {**gpu.job.model_dump(), "status": "expired", "cleanup_status": cleanup}
+        {
+            **gpu.job.model_dump(),
+            "status": "expired",
+            "cleanup_status": cleanup,
+            "receipt_expires_at": (
+                datetime.now(UTC) + timedelta(days=7)
+                if cleanup == "expired"
+                else None
+            ),
+        }
     )
     result = await coordinator.process_once(owner, meeting.id)
     assert (result.status, result.stage) == ("failed", None)
@@ -405,7 +483,8 @@ async def test_local_deadline_blocks_resubmit_after_uncertain_timeout(
     assert result.status == "failed"
     assert result.failure is not None and result.failure.code == "source_expired"
     assert result.attempt == 1
-    assert gpu.calls == ["submit"]
+    assert gpu.calls == ["submit", "lookup"]
+    assert store.read_record(owner, meeting.id).jobs[0].cleanup_status == "pending"
 
 
 async def test_missing_receipt_keeps_ready_result_and_cleanup_pending(
@@ -590,7 +669,12 @@ async def test_retry_reconciles_old_job_without_changing_current_attempt(
 
 
 @pytest.mark.parametrize(
-    "error", [GPUDomainError(404, "job_not_found"), GPUUnavailable("timeout")]
+    "error",
+    [
+        GPUDomainError(404, "job_not_found"),
+        GPUUnavailable("timeout"),
+        GPUProtocolError(),
+    ],
 )
 async def test_failed_job_without_cleanup_receipt_stays_pending(
     setup: tuple[LocalArtifactStore, UUID, Meeting, FakeGPUClient],
