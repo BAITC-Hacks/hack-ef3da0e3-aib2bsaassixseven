@@ -32,3 +32,6 @@ Thumbs.db
 .idea/
 .vscode/
 
+
+# Private meeting artifacts
+data/
