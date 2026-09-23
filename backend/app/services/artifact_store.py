@@ -373,6 +373,17 @@ class LocalArtifactStore:
             raise FileNotFoundError("Temporary source unavailable")
         return self._check(self._folder(owner_id, meeting_id) / "upload.bin")
 
+    def delete_upload(self, owner_id: UUID, meeting_id: UUID) -> None:
+        """Remove and durably sync the upload; caller tracks cleanup state.
+
+        Idempotent even after unlink succeeded but directory fsync failed.
+        Unlike upload_path, cleanup also works after the source deadline.
+        """
+        self.read_record(owner_id, meeting_id)
+        folder = self._folder(owner_id, meeting_id)
+        self._check(folder / "upload.bin").unlink(missing_ok=True)
+        self._sync_directory(folder)
+
     def publish_results(
         self, owner_id: UUID, meeting_id: UUID, bundle: ResultBundleV1
     ) -> ReadyManifest:
