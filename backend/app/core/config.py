@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +15,9 @@ class Settings(BaseSettings):
     supabase_url: str = "https://example.supabase.co"
     supabase_publishable_key: str = "replace-with-publishable-key"
     supabase_jwt_audience: str = "authenticated"
+    gpu_api_url: str | None = None
+    gpu_api_token: SecretStr | None = None
+    gpu_api_timeout_seconds: float = 30.0
 
 
 @lru_cache
