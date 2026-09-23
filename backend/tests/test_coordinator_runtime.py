@@ -1,6 +1,7 @@
 """The scheduler resumes durable meetings without overlapping their steps."""
 
 import asyncio
+import json
 from datetime import date
 from pathlib import Path
 from uuid import UUID
@@ -14,7 +15,7 @@ from app.core.config import Settings
 from app.main import create_app
 from app.models.meeting import MeetingMetadata
 from app.services.artifact_store import LocalArtifactStore
-from app.services.coordinator import CoordinatorStorageError
+from app.services.coordinator import CoordinatorStorageError, MeetingCoordinator
 from app.services.coordinator_runtime import CoordinatorRuntime
 
 OWNER = UUID("11111111-1111-4111-8111-111111111111")
@@ -118,6 +119,47 @@ async def test_concurrent_ticks_never_overlap_one_meeting(tmp_path: Path) -> Non
 
     assert coordinator.max_active == 1
     assert coordinator.calls == 2
+
+
+async def test_separate_runtime_instances_do_not_overlap_one_meeting(
+    tmp_path: Path,
+) -> None:
+    store = LocalArtifactStore(tmp_path)
+    create_meeting(store)
+    coordinator = BlockingCoordinator()
+    first_runtime = CoordinatorRuntime(LocalArtifactStore(tmp_path), coordinator)
+    second_runtime = CoordinatorRuntime(LocalArtifactStore(tmp_path), coordinator)
+
+    first = asyncio.create_task(first_runtime.tick())
+    await coordinator.entered.wait()
+    second = asyncio.create_task(second_runtime.tick())
+    await asyncio.sleep(0.01)
+    assert coordinator.calls == 1
+    coordinator.release.set()
+    await asyncio.gather(first, second)
+    assert coordinator.calls == 1
+    await second_runtime.tick()
+    assert coordinator.calls == 2
+
+
+async def test_inconsistent_job_record_does_not_block_other_meeting(
+    tmp_path: Path,
+) -> None:
+    store = LocalArtifactStore(tmp_path)
+    broken_id = create_meeting(store)
+    valid_id = create_meeting(store)
+    record = store.read_record(OWNER, broken_id)
+    payload = json.loads(record.model_dump_json())
+    payload["jobs"] = []
+    path = (
+        tmp_path / "users" / str(OWNER) / "meetings" / str(broken_id) / "meeting.json"
+    )
+    path.write_text(json.dumps(payload))
+    gpu = FakeGPUClient(bundle(valid_id))
+
+    await CoordinatorRuntime(store, MeetingCoordinator(store, gpu)).tick()
+
+    assert store.read_record(OWNER, valid_id).jobs[0].job_id == gpu.job.job_id
 
 
 async def test_corrupt_meeting_does_not_block_other_queued_meeting(

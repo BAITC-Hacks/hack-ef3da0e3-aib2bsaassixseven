@@ -60,16 +60,28 @@ class CoordinatorRuntime:
 
     async def tick(self) -> None:
         async with self._tick_lock:
-            for owner_id, meeting_id in self._meeting_ids():
-                try:
-                    meeting = self.store.read_meeting(owner_id, meeting_id)
-                except (MeetingNotFound, ArtifactIntegrityError, UnsafePath, OSError):
-                    continue
-                if meeting.status in {"queued", "processing"} or (
-                    meeting.status in {"review_required", "approved"}
-                    and meeting.cleanup_status == "pending"
-                ):
+            with self.store.coordinator_lock() as acquired:
+                if not acquired:
+                    return
+                for owner_id, meeting_id in self._meeting_ids():
                     try:
-                        await self.coordinator.process_once(owner_id, meeting_id)
-                    except CoordinatorStorageError:
+                        meeting = self.store.read_meeting(owner_id, meeting_id)
+                    except (
+                        MeetingNotFound,
+                        ArtifactIntegrityError,
+                        UnsafePath,
+                        OSError,
+                    ):
                         continue
+                    if meeting.status in {"queued", "processing"} or (
+                        meeting.status in {"review_required", "approved"}
+                        and meeting.cleanup_status == "pending"
+                    ):
+                        try:
+                            await self.coordinator.process_once(owner_id, meeting_id)
+                        except CoordinatorStorageError:
+                            continue
+                        except Exception:
+                            logger.error(
+                                "Coordinator step failed for meeting %s", meeting_id
+                            )

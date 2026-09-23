@@ -406,6 +406,23 @@ class LocalArtifactStore:
         finally:
             os.close(fd)
 
+    @contextmanager
+    def coordinator_lock(self) -> Generator[bool]:
+        """Allow one scheduler tick across all processes sharing this data root."""
+        path = self._check(self.root / ".coordinator.lock")
+        fd = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        try:
+            if not stat.S_ISREG(os.fstat(fd).st_mode):
+                raise UnsafePath("Non-regular coordinator lock")
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                yield False
+            else:
+                yield True
+        finally:
+            os.close(fd)
+
     def delete_meeting(self, owner_id: UUID, meeting_id: UUID) -> None:
         """Durably hide a completed meeting, then remove its local artifacts.
 

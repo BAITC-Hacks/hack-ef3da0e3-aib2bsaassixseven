@@ -140,6 +140,17 @@ class MeetingRecord(VersionedModel):
     local_cleanup_status: CleanupStatus
     jobs: list[JobRecord] = Field(default_factory=lambda: list[JobRecord]())
 
+    @model_validator(mode="after")
+    def valid_job_history(self) -> Self:
+        attempts = {job.attempt for job in self.jobs}
+        if (
+            not self.jobs
+            or len(attempts) != len(self.jobs)
+            or any(attempt > self.meeting.attempt for attempt in attempts)
+        ):
+            raise ValueError("Job history is inconsistent")
+        return self
+
 
 class ArtifactHashes(StrictModel):
     transcript_json: Sha256
