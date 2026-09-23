@@ -12,7 +12,7 @@ import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import styles from "./settings-view.module.scss";
 
 export function SettingsView() {
-  const { profile, updateProfile } = useDemoWorkspace();
+  const { isDemo, profile, updateProfile } = useDemoWorkspace();
   const [draft, setDraft] = useState(profile);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
@@ -26,7 +26,7 @@ export function SettingsView() {
     setSaving(true);
     setMessage("");
 
-    if (publicEnv.isSupabaseConfigured) {
+    if (!isDemo && publicEnv.isSupabaseConfigured) {
       const supabase = createBrowserSupabaseClient();
       const {
         data: { user },
@@ -49,7 +49,7 @@ export function SettingsView() {
 
     updateProfile(draft);
     setMessage(
-      publicEnv.isSupabaseConfigured
+      !isDemo && publicEnv.isSupabaseConfigured
         ? "Profile saved."
         : "Changes saved for this demo session.",
     );

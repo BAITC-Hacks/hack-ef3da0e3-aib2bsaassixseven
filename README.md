@@ -26,8 +26,8 @@ The PRD and TRD above are copied byte-for-byte from `origin/yernur-backend`.
 
 - `frontend/` — Next.js 16 App Router application with strict TypeScript, Sass
   modules, Supabase authentication, and a complete dashboard/review flow.
-- `backend/` — the existing FastAPI/Supabase starter; meeting endpoints and
-  local `data/` coordinator are planned, not yet implemented.
+- `backend/` — FastAPI meeting API, local `data/` artifact store, resumable
+  coordinator, review workflow, and PDF export.
 - `supabase/` — existing authentication/profile setup. Meeting content must not
   be persisted there under the current MVP requirements.
 - `docs/design-references/` — supplied visual references for the later design
@@ -49,16 +49,17 @@ npm --prefix frontend run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-If Supabase variables are not configured, the login screen offers a local
-demo session. That mode lets reviewers walk through the complete interface
+The login screen always offers a local demo session, including when Supabase
+is configured. That mode lets reviewers walk through the complete interface
 without external services: dashboard, meeting creation and simulated
 processing, secretary review, approval, sharing/printing, deletion, tasks,
 and profile settings. Demo meeting changes live in browser memory and reset
 when the workspace is reloaded.
 
-With Supabase variables configured, email/password registration and login use
-the existing `profiles` setup. Meeting processing remains represented by the
-demo workspace adapter until the meeting API described in the TRD is available.
+With Supabase variables configured, signed-in users upload audio or video to
+the FastAPI meeting API, follow live processing state, review saved results,
+approve minutes, and download the protected PDF. Live inference additionally
+requires the backend-only NVIDIA service settings described below.
 
 ## Current backend starter
 

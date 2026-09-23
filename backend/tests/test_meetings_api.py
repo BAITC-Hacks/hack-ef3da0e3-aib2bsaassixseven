@@ -3,6 +3,7 @@
 import io
 import json
 import os
+import subprocess
 import time
 import wave
 from pathlib import Path
@@ -171,6 +172,148 @@ async def test_existing_encoded_upload_formats_preserve_their_extension(
 
 
 @pytest.mark.parametrize(
+    ("extension", "fixture"),
+    [
+        (".mp4", "upload.m4a"),
+        (".mov", "upload.m4a"),
+        (".mkv", "matroska-opus.mkv"),
+    ],
+)
+async def test_video_containers_are_normalized_to_private_audio(
+    client: AsyncClient,
+    store: LocalArtifactStore,
+    extension: str,
+    fixture: str,
+) -> None:
+    source = (FIXTURES / fixture).read_bytes()
+    response = await upload(
+        client,
+        filename=f"meeting{extension}",
+        content=source,
+    )
+    assert response.status_code == 202
+    meeting_id = UUID(response.json()["id"])
+    record = store.read_record(OWNER, meeting_id)
+    normalized = store.upload_path(OWNER, meeting_id).read_bytes()
+    assert record.audio_extension == ".m4a"
+    assert normalized != source
+    assert normalized
+    assert list((store.root / "uploads").glob("*.upload")) == []
+
+
+async def test_video_bearing_webm_extracts_first_audio_without_retaining_video(
+    client: AsyncClient,
+    store: LocalArtifactStore,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = (FIXTURES / "browser-recording.webm").read_bytes()
+    normalized = (FIXTURES / "upload.m4a").read_bytes()
+    commands: list[list[str]] = []
+
+    def fake_run(
+        command: list[str], **options: object
+    ) -> subprocess.CompletedProcess[bytes]:
+        commands.append(command)
+        if command[0] == "ffprobe":
+            payload = (
+                {
+                    "format": {"format_name": "matroska,webm"},
+                    "streams": [
+                        {"codec_name": "vp9", "codec_type": "video"},
+                        {"codec_name": "opus", "codec_type": "audio"},
+                    ],
+                }
+                if Path(command[-1]).read_bytes() == source
+                else {
+                    "format": {"format_name": "mov,mp4,m4a,3gp,3g2,mj2"},
+                    "streams": [{"codec_name": "aac", "codec_type": "audio"}],
+                }
+            )
+            return subprocess.CompletedProcess(
+                command, 0, stdout=json.dumps(payload).encode()
+            )
+        assert command[0] == "ffmpeg"
+        assert command[command.index("-map") + 1] == "0:a:0"
+        assert "-vn" in command
+        assert options["timeout"] == uploads.VIDEO_EXTRACTION_TIMEOUT_SECONDS
+        Path(command[-1]).write_bytes(normalized)
+        return subprocess.CompletedProcess(command, 0, stdout=b"")
+
+    monkeypatch.setattr(uploads.subprocess, "run", fake_run)
+    response = await upload(client, filename="meeting.webm", content=source)
+    assert response.status_code == 202
+    meeting_id = UUID(response.json()["id"])
+    assert store.read_record(OWNER, meeting_id).audio_extension == ".m4a"
+    assert store.upload_path(OWNER, meeting_id).read_bytes() == normalized
+    assert [command[0] for command in commands] == ["ffprobe", "ffmpeg", "ffprobe"]
+    assert list((store.root / "uploads").glob("*.upload")) == []
+
+
+async def test_video_without_audio_is_rejected_and_staging_is_removed(
+    client: AsyncClient,
+    store: LocalArtifactStore,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(
+        command: list[str], **_options: object
+    ) -> subprocess.CompletedProcess[bytes]:
+        assert command[0] == "ffprobe"
+        payload = {
+            "format": {"format_name": "mov,mp4,m4a,3gp,3g2,mj2"},
+            "streams": [{"codec_name": "h264", "codec_type": "video"}],
+        }
+        return subprocess.CompletedProcess(
+            command, 0, stdout=json.dumps(payload).encode()
+        )
+
+    monkeypatch.setattr(uploads.subprocess, "run", fake_run)
+    response = await upload(
+        client,
+        filename="silent.mp4",
+        content=(FIXTURES / "upload.m4a").read_bytes(),
+    )
+    assert response.status_code == 415
+    assert response.json()["code"] == "unsupported_media_type"
+    assert store.list_meetings(OWNER) == []
+    assert list((store.root / "uploads").glob("*.upload")) == []
+
+
+async def test_video_extraction_timeout_is_rejected_and_staging_is_removed(
+    client: AsyncClient,
+    store: LocalArtifactStore,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(
+        command: list[str], **_options: object
+    ) -> subprocess.CompletedProcess[bytes]:
+        if command[0] == "ffmpeg":
+            raise subprocess.TimeoutExpired(
+                command, uploads.VIDEO_EXTRACTION_TIMEOUT_SECONDS
+            )
+        payload = {
+            "format": {"format_name": "mov,mp4,m4a,3gp,3g2,mj2"},
+            "streams": [
+                {"codec_name": "h264", "codec_type": "video"},
+                {"codec_name": "aac", "codec_type": "audio"},
+            ],
+        }
+        return subprocess.CompletedProcess(
+            command, 0, stdout=json.dumps(payload).encode()
+        )
+
+    monkeypatch.setattr(uploads.subprocess, "run", fake_run)
+    response = await upload(
+        client,
+        filename="meeting.mp4",
+        content=(FIXTURES / "upload.m4a").read_bytes(),
+    )
+    assert response.status_code == 415
+    assert response.json()["code"] == "unsupported_media_type"
+    assert store.list_meetings(OWNER) == []
+    assert list((store.root / "uploads").glob("*.upload")) == []
+
+
+@pytest.mark.parametrize(
     "fixture",
     ["webm-vorbis.webm", "matroska-opus.mkv"],
 )
@@ -263,7 +406,7 @@ async def test_invalid_audio_does_not_create_meeting(
 async def test_oversize_rejected_while_parsing(
     client: AsyncClient, store: LocalArtifactStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(uploads, "MAX_AUDIO_BYTES", 100)
+    monkeypatch.setattr(uploads, "MAX_UPLOAD_BYTES", 100)
     result = await upload(client)
     assert result.status_code == 413
     assert result.json()["code"] == "file_too_large"

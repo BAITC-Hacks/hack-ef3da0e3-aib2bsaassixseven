@@ -3,7 +3,6 @@ import Link from "next/link";
 
 import { AuthForm } from "@/features/auth/ui/auth-form";
 import { DitheredShaderBackground } from "@/features/landing/components/dithered-shader";
-import { publicEnv } from "@/lib/config/public-env";
 
 import styles from "./page.module.scss";
 
@@ -37,7 +36,7 @@ export default async function LoginPage({
           </p>
         </div>
         <AuthForm
-          allowDemo={!publicEnv.isSupabaseConfigured}
+          allowDemo
           initialMode={initialMode}
         />
       </section>

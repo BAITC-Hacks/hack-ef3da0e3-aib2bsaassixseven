@@ -250,6 +250,117 @@
   }
 }
 
+.summaryList,
+.liveTaskList {
+  display: grid;
+}
+
+.summaryItem {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  gap: tokens.$space-4;
+  padding: tokens.$space-5 0;
+  border-bottom: 1px solid var(--color-border);
+
+  p,
+  blockquote {
+    margin: 0;
+  }
+
+  blockquote,
+  .liveTask blockquote {
+    margin-top: tokens.$space-3;
+  }
+}
+
+.itemNumber {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.summaryItem blockquote,
+.liveTask blockquote {
+  padding-left: tokens.$space-3;
+  border-left: 2px solid var(--color-border-strong);
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.55;
+
+  span {
+    margin-right: tokens.$space-2;
+    color: var(--color-accent);
+  }
+}
+
+.liveTask {
+  padding: tokens.$space-5 0;
+  border-bottom: 1px solid var(--color-border);
+
+  h3,
+  blockquote {
+    margin: 0;
+  }
+
+  h3 {
+    font-size: 1rem;
+  }
+
+  dl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: tokens.$space-6;
+    margin: tokens.$space-3 0;
+  }
+
+  dl div {
+    display: grid;
+    gap: tokens.$space-1;
+  }
+
+  dt {
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+  }
+
+  dd {
+    margin: 0;
+    font-size: 0.82rem;
+  }
+}
+
+.speakerReview {
+  display: grid;
+  gap: tokens.$space-3;
+  margin-top: tokens.$space-4;
+  padding: tokens.$space-4;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+
+  h3 {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+
+  label {
+    display: grid;
+    grid-template-columns: minmax(8rem, 0.5fr) minmax(12rem, 1fr);
+    align-items: center;
+    gap: tokens.$space-3;
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+  }
+
+  select {
+    min-height: 2.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: tokens.$radius-small;
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+}
+
 .section textarea,
 .assignment input {
   padding: tokens.$space-3;

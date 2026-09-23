@@ -92,7 +92,7 @@ export function AuthForm({
 
       {allowDemo ? (
         <form action={continueDemo} className={styles.demo}>
-          <p>Supabase is not configured. You can explore the full interface locally.</p>
+          <p>Explore the complete interface with private in-memory sample data.</p>
           <button type="submit">Continue in demo mode</button>
         </form>
       ) : null}

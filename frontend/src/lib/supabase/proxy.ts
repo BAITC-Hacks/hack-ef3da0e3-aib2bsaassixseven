@@ -20,20 +20,21 @@ function copyAuthState(source: NextResponse, target: NextResponse) {
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   let response = NextResponse.next({ request });
+  const hasDemoSession = request.cookies.get(demoCookie)?.value === "active";
+
+  if (hasDemoSession) {
+    if (pathname === "/login") {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+    return response;
+  }
 
   if (!publicEnv.isSupabaseConfigured) {
-    const hasDemoSession = request.cookies.get(demoCookie)?.value === "active";
-
-    if (!hasDemoSession && requiresAuthentication(pathname)) {
+    if (requiresAuthentication(pathname)) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("next", pathname);
       return NextResponse.redirect(loginUrl);
     }
-
-    if (hasDemoSession && pathname === "/login") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
-    }
-
     return response;
   }
 

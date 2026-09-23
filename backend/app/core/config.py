@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     supabase_url: str = "https://example.supabase.co"
     supabase_publishable_key: str = "replace-with-publishable-key"
     supabase_jwt_audience: str = "authenticated"
+    data_root: Path = Path("data")
     gpu_api_url: str | None = None
     gpu_api_token: SecretStr | None = None
     gpu_api_timeout_seconds: float = 30.0

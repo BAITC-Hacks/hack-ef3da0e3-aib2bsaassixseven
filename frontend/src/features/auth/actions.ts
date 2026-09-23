@@ -99,10 +99,6 @@ export async function signUp(
 }
 
 export async function continueDemo() {
-  if (publicEnv.isSupabaseConfigured) {
-    redirect("/login");
-  }
-
   const cookieStore = await cookies();
   cookieStore.set("tirke-demo-session", "active", {
     httpOnly: true,

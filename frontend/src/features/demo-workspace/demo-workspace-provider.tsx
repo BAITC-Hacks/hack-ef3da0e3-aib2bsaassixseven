@@ -24,6 +24,7 @@ export type NewMeetingInput = {
 };
 
 type DemoWorkspaceValue = {
+  isDemo: boolean;
   meetings: DemoMeeting[];
   profile: DemoProfile;
   isNewMeetingOpen: boolean;
@@ -52,9 +53,11 @@ const DemoWorkspaceContext = createContext<DemoWorkspaceValue | null>(null);
 export function DemoWorkspaceProvider({
   children,
   initialProfile,
+  isDemo = true,
 }: {
   children: React.ReactNode;
   initialProfile: DemoProfile;
+  isDemo?: boolean;
 }) {
   const [meetings, setMeetings] = useState(seededMeetings);
   const [profile, setProfile] = useState(initialProfile);
@@ -68,6 +71,7 @@ export function DemoWorkspaceProvider({
 
   const value = useMemo<DemoWorkspaceValue>(
     () => ({
+      isDemo,
       meetings,
       profile,
       isNewMeetingOpen,
@@ -195,7 +199,7 @@ export function DemoWorkspaceProvider({
       },
       updateProfile: setProfile,
     }),
-    [isNewMeetingOpen, meetings, profile],
+    [isDemo, isNewMeetingOpen, meetings, profile],
   );
 
   return (

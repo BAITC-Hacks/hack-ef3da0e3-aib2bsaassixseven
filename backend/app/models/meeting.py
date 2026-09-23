@@ -30,6 +30,8 @@ CleanupStatus = Literal["pending", "deleted", "expired"]
 LanguageHint = Literal["auto", "ru", "kk", "mixed"]
 PublicSourceKind = Literal["uploaded_audio", "browser_recording"]
 AudioExtension = Literal[".wav", ".mp3", ".m4a", ".ogg", ".webm"]
+VideoExtension = Literal[".mp4", ".mov", ".mkv"]
+UploadExtension = AudioExtension | VideoExtension
 PositiveInt = Annotated[StrictInt, Field(ge=1)]
 
 

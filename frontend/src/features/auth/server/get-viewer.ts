@@ -10,17 +10,16 @@ export type Viewer = {
 };
 
 export async function getViewer(): Promise<Viewer | null> {
-  if (!publicEnv.isSupabaseConfigured) {
-    const cookieStore = await cookies();
-    if (cookieStore.get("tirke-demo-session")?.value !== "active") {
-      return null;
-    }
+  const cookieStore = await cookies();
+  if (cookieStore.get("tirke-demo-session")?.value === "active") {
     return {
       displayName: "Vlad",
       email: "demo@tirke.local",
       isDemo: true,
     };
   }
+
+  if (!publicEnv.isSupabaseConfigured) return null;
 
   const supabase = await createServerSupabaseClient();
   const {

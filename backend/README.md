@@ -17,6 +17,10 @@ Copy `.env.example` to `.env` and use the same Supabase URL and publishable key
 as the frontend. The API deliberately has no privileged server key: it forwards
 the caller's token to PostgREST so database RLS remains active.
 
+`ffprobe` and `ffmpeg` must be installed on the backend host. Audio uploads are
+validated locally; MP4, MOV, MKV, and video-bearing WebM uploads are converted
+locally to a private audio-only M4A before the NVIDIA service is contacted.
+
 Configure `DATA_ROOT` for local artifacts. Live inference requires backend-only
 `GPU_API_URL` and `GPU_API_TOKEN` pointing to the separately deployed NVIDIA
 service; both must be set together. Without them, the API can still serve

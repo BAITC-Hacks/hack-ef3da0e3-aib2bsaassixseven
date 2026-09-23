@@ -4,6 +4,10 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useDemoWorkspace } from "@/features/demo-workspace/demo-workspace-provider";
+import {
+  createMeeting as createApiMeeting,
+  MeetingApiError,
+} from "@/features/meetings/api/client";
 
 import styles from "./new-meeting-modal.module.scss";
 
@@ -20,11 +24,12 @@ function initialParticipantFields(): ParticipantField[] {
 
 export function NewMeetingModal() {
   const router = useRouter();
-  const { closeNewMeeting, createMeeting, isNewMeetingOpen } = useDemoWorkspace();
+  const { closeNewMeeting, createMeeting, isDemo, isNewMeetingOpen } = useDemoWorkspace();
   const formRef = useRef<HTMLFormElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const nextParticipantId = useRef(1);
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [participantFields, setParticipantFields] = useState(
     initialParticipantFields,
   );
@@ -34,6 +39,7 @@ export function NewMeetingModal() {
     nextParticipantId.current = 1;
     setParticipantFields(initialParticipantFields());
     setError("");
+    setIsSubmitting(false);
     closeNewMeeting();
   }, [closeNewMeeting]);
 
@@ -56,7 +62,7 @@ export function NewMeetingModal() {
 
   if (!isNewMeetingOpen) return null;
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     const formData = new FormData(event.currentTarget);
@@ -83,12 +89,40 @@ export function NewMeetingModal() {
       return;
     }
 
-    const id = createMeeting({
-      title: String(formData.get("title") ?? "").trim(),
-      recordedAt: String(formData.get("recordedAt") ?? ""),
-      participantNames,
-      audioFileName: file.name,
-    });
+    const title = String(formData.get("title") ?? "").trim();
+    const recordedAt = String(formData.get("recordedAt") ?? "");
+    setIsSubmitting(true);
+
+    let id: string;
+    try {
+      if (isDemo) {
+        id = createMeeting({
+          title,
+          recordedAt,
+          participantNames,
+          audioFileName: file.name,
+        });
+      } else {
+        const meeting = await createApiMeeting(file, {
+          title,
+          meeting_date: recordedAt.split("T", 1)[0] ?? recordedAt,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          participants: [...new Set(participantNames)],
+          recording_notice_confirmed: true,
+          language_hint: "auto",
+          source_kind: "uploaded_audio",
+        });
+        id = meeting.id;
+      }
+    } catch (caught) {
+      setError(
+        caught instanceof MeetingApiError
+          ? caught.message
+          : "The recording could not be uploaded. Try again.",
+      );
+      setIsSubmitting(false);
+      return;
+    }
 
     formRef.current?.reset();
     nextParticipantId.current = 1;
@@ -215,12 +249,12 @@ export function NewMeetingModal() {
             <label className={styles.fullWidth}>
               Meeting recording
               <input
-                accept=".wav,.mp3,.m4a,.ogg,.webm,audio/*,video/webm"
+                accept=".wav,.mp3,.m4a,.ogg,.webm,.mp4,.mov,.mkv,audio/*,video/webm,video/mp4,video/quicktime,video/x-matroska"
                 name="recording"
                 required
                 type="file"
               />
-              <span>WAV, MP3, M4A, OGG or WebM · up to 100 MiB</span>
+              <span>WAV, MP3, M4A, OGG, WebM, MP4, MOV or MKV · up to 100 MiB</span>
             </label>
           </div>
 
@@ -237,11 +271,11 @@ export function NewMeetingModal() {
           ) : null}
 
           <footer className={styles.footer}>
-            <button onClick={resetAndClose} type="button">
+            <button disabled={isSubmitting} onClick={resetAndClose} type="button">
               Cancel
             </button>
-            <button className={styles.primary} type="submit">
-              Start processing
+            <button className={styles.primary} disabled={isSubmitting} type="submit">
+              {isSubmitting ? "Uploading…" : "Start processing"}
             </button>
           </footer>
         </form>

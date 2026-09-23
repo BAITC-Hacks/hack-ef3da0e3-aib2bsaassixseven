@@ -13,6 +13,7 @@ import type {
   DemoAssignment,
   DemoMeeting,
 } from "@/features/demo-workspace/model/demo-data";
+import { LiveMeetingDetailView } from "./live-meeting-detail-view";
 
 import styles from "./meeting-detail-view.module.scss";
 
@@ -37,6 +38,15 @@ function emptyAssignment(): DemoAssignment {
 }
 
 export function MeetingDetailView({ meetingId }: { meetingId: string }) {
+  const { isDemo } = useDemoWorkspace();
+  return isDemo ? (
+    <DemoMeetingDetailView meetingId={meetingId} />
+  ) : (
+    <LiveMeetingDetailView meetingId={meetingId} />
+  );
+}
+
+function DemoMeetingDetailView({ meetingId }: { meetingId: string }) {
   const router = useRouter();
   const {
     approveMeeting,

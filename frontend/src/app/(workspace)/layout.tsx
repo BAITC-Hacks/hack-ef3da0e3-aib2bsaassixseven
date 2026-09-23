@@ -13,6 +13,7 @@ export default async function WorkspaceLayout({
 
   return (
     <DemoWorkspaceProvider
+      isDemo={viewer.isDemo}
       initialProfile={{
         displayName: viewer.displayName,
         email: viewer.email,

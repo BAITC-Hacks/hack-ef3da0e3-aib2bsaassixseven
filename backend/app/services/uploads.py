@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import cast
 
 from fastapi import Request
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from starlette.datastructures import UploadFile
 from starlette.formparsers import MultiPartException, MultiPartParser
 
@@ -19,12 +19,36 @@ from app.models.meeting import (
     MeetingMetadata,
     MeetingUploadMetadata,
     PublicSourceKind,
+    UploadExtension,
+    VideoExtension,
 )
 from app.services.artifact_store import LocalArtifactStore
 
-MAX_AUDIO_BYTES = 100 * 1024 * 1024
+MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 MAX_METADATA_BYTES = 16 * 1024
-ALLOWED_EXTENSIONS = {".wav", ".mp3", ".m4a", ".ogg", ".webm"}
+MEDIA_PROBE_TIMEOUT_SECONDS = 5
+VIDEO_EXTRACTION_TIMEOUT_SECONDS = 120
+AUDIO_EXTENSIONS: frozenset[AudioExtension] = frozenset(
+    {".wav", ".mp3", ".m4a", ".ogg", ".webm"}
+)
+VIDEO_EXTENSIONS: frozenset[VideoExtension] = frozenset({".mp4", ".mov", ".mkv"})
+ALLOWED_EXTENSIONS: frozenset[UploadExtension] = frozenset(
+    {*AUDIO_EXTENSIONS, *VIDEO_EXTENSIONS}
+)
+
+
+class _ProbeFormat(BaseModel):
+    format_name: str
+
+
+class _ProbeStream(BaseModel):
+    codec_name: str | None = None
+    codec_type: str
+
+
+class _ProbeResult(BaseModel):
+    format: _ProbeFormat
+    streams: list[_ProbeStream]
 
 
 class UploadError(Exception):
@@ -66,7 +90,7 @@ class BoundedMeetingParser(MultiPartParser):
     def on_part_data(self, data: bytes, start: int, end: int) -> None:
         if self._current_part.field_name == "audio":
             self.audio_bytes += end - start
-            if self.audio_bytes > MAX_AUDIO_BYTES:
+            if self.audio_bytes > MAX_UPLOAD_BYTES:
                 raise UploadError(413, "file_too_large")
         super().on_part_data(data, start, end)
 
@@ -116,46 +140,72 @@ async def parse_upload(
 def stage_and_validate(
     audio: UploadFile, store: LocalArtifactStore
 ) -> tuple[Path, AudioExtension]:
-    """Copy a parsed, size-bounded file to private staging and validate audio."""
+    """Privately stage media and return a validated, audio-only GPU payload."""
     suffix = Path(audio.filename or "").suffix.lower()
     if suffix not in ALLOWED_EXTENSIONS:
         raise UploadError(415, "unsupported_media_type")
-    path = store.temporary_upload_path()
+    upload_extension = cast(UploadExtension, suffix)
+    source_path = store.temporary_upload_path()
+    normalized_path: Path | None = None
     try:
-        with os.fdopen(os.open(path, os.O_WRONLY | os.O_NOFOLLOW), "wb") as output:
+        with os.fdopen(
+            os.open(source_path, os.O_WRONLY | os.O_NOFOLLOW), "wb"
+        ) as output:
             shutil.copyfileobj(audio.file, output, 1024 * 1024)
             output.flush()
             os.fsync(output.fileno())
-        _validate_audio(path, suffix)
-        return path, cast(AudioExtension, suffix)
+        if upload_extension == ".wav":
+            _validate_wav(source_path)
+            return source_path, ".wav"
+
+        probe = _probe_media(source_path)
+        _validate_container(source_path, upload_extension, probe)
+        audio_streams = [
+            stream for stream in probe.streams if stream.codec_type == "audio"
+        ]
+        if not audio_streams:
+            raise UploadError(415, "unsupported_media_type")
+
+        needs_extraction = upload_extension in VIDEO_EXTENSIONS or any(
+            stream.codec_type == "video" for stream in probe.streams
+        )
+        if needs_extraction:
+            normalized_path = _extract_first_audio(source_path, store)
+            source_path.unlink()
+            return normalized_path, ".m4a"
+
+        _validate_audio_only(upload_extension, probe)
+        return source_path, cast(AudioExtension, upload_extension)
     except BaseException:
-        path.unlink(missing_ok=True)
+        source_path.unlink(missing_ok=True)
+        if normalized_path is not None:
+            normalized_path.unlink(missing_ok=True)
         raise
 
 
-def _validate_audio(path: Path, suffix: str) -> None:
-    if suffix == ".wav":
-        try:
-            with wave.open(str(path), "rb") as stream:
-                if (
-                    stream.getnchannels() < 1
-                    or stream.getframerate() < 1
-                    or stream.getnframes() < 1
-                ):
-                    raise ValueError("Empty WAV")
-                frame_size = stream.getnchannels() * stream.getsampwidth()
-                remaining = stream.getnframes()
-                frames_per_chunk = max(1, 64 * 1024 // frame_size)
-                while remaining:
-                    frames = min(remaining, frames_per_chunk)
-                    if len(stream.readframes(frames)) != frames * frame_size:
-                        raise ValueError("Truncated WAV")
-                    remaining -= frames
-            return
-        except (EOFError, ValueError, wave.Error):
-            raise UploadError(415, "unsupported_media_type") from None
-    # Check the actual container and an audio stream. The suffix alone is never
-    # sufficient, and ffprobe is strictly time bounded.
+def _validate_wav(path: Path) -> None:
+    try:
+        with wave.open(str(path), "rb") as stream:
+            if (
+                stream.getnchannels() < 1
+                or stream.getframerate() < 1
+                or stream.getnframes() < 1
+            ):
+                raise ValueError("Empty WAV")
+            frame_size = stream.getnchannels() * stream.getsampwidth()
+            remaining = stream.getnframes()
+            frames_per_chunk = max(1, 64 * 1024 // frame_size)
+            while remaining:
+                frames = min(remaining, frames_per_chunk)
+                if len(stream.readframes(frames)) != frames * frame_size:
+                    raise ValueError("Truncated WAV")
+                remaining -= frames
+    except (EOFError, ValueError, wave.Error):
+        raise UploadError(415, "unsupported_media_type") from None
+
+
+def _probe_media(path: Path) -> _ProbeResult:
+    """Read only structural media metadata with a strict wall-clock bound."""
     try:
         result = subprocess.run(
             [
@@ -168,8 +218,10 @@ def _validate_audio(path: Path, suffix: str) -> None:
                 "json",
                 str(path),
             ],
-            capture_output=True,
-            timeout=5,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            timeout=MEDIA_PROBE_TIMEOUT_SECONDS,
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -177,28 +229,94 @@ def _validate_audio(path: Path, suffix: str) -> None:
     if result.returncode != 0:
         raise UploadError(415, "unsupported_media_type")
     try:
-        probe = json.loads(result.stdout)
-        formats = set(probe["format"]["format_name"].split(","))
-        streams = probe["streams"]
-    except (KeyError, TypeError, ValueError):
+        return _ProbeResult.model_validate_json(result.stdout)
+    except (ValidationError, ValueError):
         raise UploadError(415, "unsupported_media_type") from None
+
+
+def _validate_container(
+    path: Path, suffix: UploadExtension, probe: _ProbeResult
+) -> None:
+    formats = set(probe.format.format_name.split(","))
     expected = {
         ".mp3": {"mp3"},
         ".m4a": {"mov", "mp4", "m4a", "3gp", "3g2", "mj2"},
         ".ogg": {"ogg"},
         ".webm": {"matroska", "webm"},
+        ".mp4": {"mov", "mp4", "m4a", "3gp", "3g2", "mj2"},
+        ".mov": {"mov", "mp4", "m4a", "3gp", "3g2", "mj2"},
+        ".mkv": {"matroska", "webm"},
     }[suffix]
-    if (
-        not formats.intersection(expected)
-        or not streams
-        or not all(item.get("codec_type") == "audio" for item in streams)
+    if not formats.intersection(expected) or not probe.streams:
+        raise UploadError(415, "unsupported_media_type")
+    if suffix == ".webm" and not _has_webm_doctype(path):
+        raise UploadError(415, "unsupported_media_type")
+
+
+def _validate_audio_only(suffix: UploadExtension, probe: _ProbeResult) -> None:
+    if not all(stream.codec_type == "audio" for stream in probe.streams):
+        raise UploadError(415, "unsupported_media_type")
+    if suffix == ".webm" and not all(
+        stream.codec_name == "opus" for stream in probe.streams
     ):
         raise UploadError(415, "unsupported_media_type")
-    if suffix == ".webm" and (
-        not _has_webm_doctype(path)
-        or not all(item.get("codec_name") == "opus" for item in streams)
-    ):
-        raise UploadError(415, "unsupported_media_type")
+
+
+def _extract_first_audio(source: Path, store: LocalArtifactStore) -> Path:
+    """Convert one local video stream to a bounded audio-only M4A payload."""
+    target = store.temporary_upload_path()
+    try:
+        result = subprocess.run(
+            [
+                "ffmpeg",
+                "-nostdin",
+                "-v",
+                "error",
+                "-y",
+                "-i",
+                str(source),
+                "-map",
+                "0:a:0",
+                "-vn",
+                "-map_metadata",
+                "-1",
+                "-map_chapters",
+                "-1",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "128k",
+                "-threads",
+                "1",
+                "-fs",
+                str(MAX_UPLOAD_BYTES + 1),
+                "-f",
+                "ipod",
+                str(target),
+            ],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=VIDEO_EXTRACTION_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        target.unlink(missing_ok=True)
+        raise UploadError(415, "unsupported_media_type") from None
+    try:
+        if (
+            result.returncode != 0
+            or not target.is_file()
+            or not 0 < target.stat().st_size <= MAX_UPLOAD_BYTES
+        ):
+            raise UploadError(415, "unsupported_media_type")
+        probe = _probe_media(target)
+        _validate_container(target, ".m4a", probe)
+        _validate_audio_only(".m4a", probe)
+        return target
+    except BaseException:
+        target.unlink(missing_ok=True)
+        raise
 
 
 def _has_webm_doctype(path: Path) -> bool:
