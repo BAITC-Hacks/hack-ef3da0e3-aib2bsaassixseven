@@ -1,6 +1,7 @@
 """Periodic cleanup of private local files and durable cleanup state."""
 
 import asyncio
+import json
 import os
 import threading
 from datetime import UTC, datetime, timedelta
@@ -9,11 +10,14 @@ from uuid import UUID, uuid4
 
 import pytest
 from test_artifact_store import bundle, metadata
+from test_coordinator import FakeGPUClient
 from test_coordinator_runtime import RecordingCoordinator
 
 from app.models.meeting import CleanupStatus
 from app.services.artifact_store import LocalArtifactStore
+from app.services.coordinator import MeetingCoordinator
 from app.services.coordinator_runtime import CoordinatorRuntime
+from app.services.gpu_client import GPUUnavailable
 
 OWNER = UUID("11111111-1111-4111-8111-111111111111")
 
@@ -119,6 +123,51 @@ async def test_never_submitted_expired_meeting_has_no_pending_gpu_copy(
     assert persisted.jobs[0].cleanup_status == "expired"
     assert persisted.meeting.cleanup_status == "expired"
     assert not store.upload_present(OWNER, meeting_id)
+
+
+async def test_timed_out_submit_without_job_id_never_proves_gpu_cleanup(
+    tmp_path: Path,
+) -> None:
+    store = LocalArtifactStore(tmp_path)
+    meeting_id = create_meeting(store)
+    gpu = FakeGPUClient(bundle(meeting_id))
+    gpu.error = GPUUnavailable("timeout")
+    await MeetingCoordinator(store, gpu).process_once(OWNER, meeting_id)
+    record = store.read_record(OWNER, meeting_id)
+    assert record.jobs[0].job_id is None
+    record.meeting.temporary_expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    store.update_meeting(OWNER, record)
+
+    await CoordinatorRuntime(store, RecordingCoordinator()).tick()
+
+    persisted = LocalArtifactStore(tmp_path).read_record(OWNER, meeting_id)
+    assert not store.upload_present(OWNER, meeting_id)
+    assert persisted.jobs[0].cleanup_status == "pending"
+    assert persisted.meeting.cleanup_status == "pending"
+
+
+async def test_legacy_unknown_submit_without_job_id_stays_pending(
+    tmp_path: Path,
+) -> None:
+    store = LocalArtifactStore(tmp_path)
+    meeting_id = create_meeting(store)
+    record = store.read_record(OWNER, meeting_id)
+    record.meeting.status = "failed"
+    record.meeting.temporary_expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    store.update_meeting(OWNER, record)
+    path = (
+        tmp_path / "users" / str(OWNER) / "meetings" / str(meeting_id) / "meeting.json"
+    )
+    payload = json.loads(path.read_text())
+    del payload["jobs"][0]["submit_started"]
+    path.write_text(json.dumps(payload))
+
+    await CoordinatorRuntime(store, RecordingCoordinator()).tick()
+
+    persisted = LocalArtifactStore(tmp_path).read_record(OWNER, meeting_id)
+    assert not store.upload_present(OWNER, meeting_id)
+    assert persisted.jobs[0].cleanup_status == "pending"
+    assert persisted.meeting.cleanup_status == "pending"
 
 
 async def test_ready_results_survive_upload_ttl_cleanup(tmp_path: Path) -> None:

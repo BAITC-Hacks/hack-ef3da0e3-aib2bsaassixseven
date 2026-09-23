@@ -9,10 +9,11 @@ from test_artifact_store import bundle, metadata
 
 from app.models.gpu import AckV1, GPUContextV1, JobV1
 from app.models.insights import ResultBundleV1
-from app.models.meeting import Meeting
+from app.models.meeting import Failure, Meeting
 from app.services.artifact_store import LocalArtifactStore, MeetingNotFound
 from app.services.coordinator import CoordinatorStorageError, MeetingCoordinator
-from app.services.gpu_client import GPUClient, GPUUnavailable
+from app.services.gpu_client import GPUClient, GPUDomainError, GPUUnavailable
+from app.services.lifecycle import retry_meeting
 
 
 class FakeGPUClient(GPUClient):
@@ -295,7 +296,7 @@ async def test_expired_gpu_without_local_result_fails_safely(
     assert store.read_record(owner, meeting.id).jobs[0].cleanup_status == cleanup
     calls = list(gpu.calls)
     await coordinator.process_once(owner, meeting.id)
-    assert gpu.calls == calls
+    assert gpu.calls == calls + (["poll"] if cleanup == "pending" else [])
 
 
 async def test_failed_gpu_message_is_never_exposed(
@@ -508,3 +509,108 @@ async def test_expired_ack_receipt_confirms_cleanup_without_changing_ready_state
     assert result.status == ("approved" if approved else "review_required")
     assert result.cleanup_status == "expired"
     assert result.failure is None
+
+
+@pytest.mark.parametrize("cleanup", ["deleted", "expired"])
+async def test_failed_job_reconciles_confirmed_remote_cleanup_without_ack(
+    setup: tuple[LocalArtifactStore, UUID, Meeting, FakeGPUClient],
+    cleanup: str,
+) -> None:
+    store, owner, meeting, gpu = setup
+    record = store.read_record(owner, meeting.id)
+    record.meeting.status = "failed"
+    record.meeting.failure = Failure(
+        code="processing_failed", message="Не удалось обработать запись"
+    )
+    record.jobs[0].job_id = gpu.job.job_id
+    record.jobs[0].result_hash = gpu.result.result_hash
+    record.jobs[0].ack_pending = True
+    store.delete_upload(owner, meeting.id)
+    record.local_cleanup_status = "deleted"
+    record.meeting.source_available = False
+    store.update_meeting(owner, record)
+    gpu.job = JobV1.model_validate(
+        {
+            **gpu.job.model_dump(),
+            "status": "completed" if cleanup == "deleted" else "expired",
+            "result_hash": gpu.result.result_hash if cleanup == "deleted" else None,
+            "cleanup_status": cleanup,
+            "receipt_expires_at": datetime.now(UTC) + timedelta(days=7),
+        }
+    )
+
+    result = await MeetingCoordinator(store, gpu).process_once(owner, meeting.id)
+
+    persisted = LocalArtifactStore(store.root).read_record(owner, meeting.id)
+    assert result.status == "failed"
+    assert result.failure == record.meeting.failure
+    assert result.cleanup_status == cleanup
+    assert persisted.jobs[0].cleanup_status == cleanup
+    assert persisted.jobs[0].receipt_expires_at == gpu.job.receipt_expires_at
+    assert not persisted.jobs[0].ack_pending
+    assert gpu.calls == ["poll"]
+
+
+async def test_retry_reconciles_old_job_without_changing_current_attempt(
+    setup: tuple[LocalArtifactStore, UUID, Meeting, FakeGPUClient],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store, owner, meeting, gpu = setup
+    old_job_id = uuid4()
+    record = store.read_record(owner, meeting.id)
+    record.meeting.status = "failed"
+    record.meeting.failure = Failure(
+        code="processing_failed", message="Не удалось обработать запись"
+    )
+    record.jobs[0].job_id = old_job_id
+    store.update_meeting(owner, record)
+    retry_meeting(store, owner, meeting.id)
+    old_remote = gpu.job.model_copy(
+        update={
+            "job_id": old_job_id,
+            "status": "expired",
+            "cleanup_status": "expired",
+        }
+    )
+
+    async def old_receipt(job_id: UUID) -> JobV1:
+        assert job_id == old_job_id
+        gpu.calls.append("poll")
+        return old_remote
+
+    monkeypatch.setattr(gpu, "get_job", old_receipt)
+    result = await MeetingCoordinator(store, gpu).process_once(owner, meeting.id)
+
+    persisted = LocalArtifactStore(store.root).read_record(owner, meeting.id)
+    assert result.attempt == 2 and result.status == "processing"
+    assert persisted.jobs[0].cleanup_status == "expired"
+    assert persisted.jobs[1].job_id == gpu.job.job_id
+    assert persisted.meeting.cleanup_status == "pending"
+    assert gpu.calls == ["poll", "submit"]
+
+
+@pytest.mark.parametrize(
+    "error", [GPUDomainError(404, "job_not_found"), GPUUnavailable("timeout")]
+)
+async def test_failed_job_without_cleanup_receipt_stays_pending(
+    setup: tuple[LocalArtifactStore, UUID, Meeting, FakeGPUClient],
+    error: Exception,
+) -> None:
+    store, owner, meeting, gpu = setup
+    record = store.read_record(owner, meeting.id)
+    record.meeting.status = "failed"
+    record.meeting.failure = Failure(
+        code="processing_failed", message="Не удалось обработать запись"
+    )
+    record.jobs[0].job_id = gpu.job.job_id
+    store.delete_upload(owner, meeting.id)
+    record.local_cleanup_status = "deleted"
+    record.meeting.source_available = False
+    store.update_meeting(owner, record)
+    gpu.error = error
+
+    result = await MeetingCoordinator(store, gpu).process_once(owner, meeting.id)
+
+    assert result.status == "failed" and result.cleanup_status == "pending"
+    assert store.read_record(owner, meeting.id).jobs[0].cleanup_status == "pending"
+    assert gpu.calls == ["poll"]

@@ -262,7 +262,7 @@ class LocalArtifactStore:
             meeting=meeting,
             audio_sha256=digest.hexdigest(),
             local_cleanup_status="pending",
-            jobs=[JobRecord(attempt=1)],
+            jobs=[JobRecord(attempt=1, submit_started=False)],
         )
         marker = self._check(folder / "meeting.json")
         try:

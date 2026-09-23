@@ -31,7 +31,7 @@ def retry_meeting(
         record.meeting.failure = None
         record.meeting.revision = 0
         record.meeting.updated_at = datetime.now(UTC)
-        record.jobs.append(JobRecord(attempt=next_attempt))
+        record.jobs.append(JobRecord(attempt=next_attempt, submit_started=False))
         record.meeting.cleanup_status = "pending"
         return store.update_meeting(owner_id, record)
 

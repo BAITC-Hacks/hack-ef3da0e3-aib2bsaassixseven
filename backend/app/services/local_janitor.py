@@ -145,7 +145,11 @@ class LocalJanitor:
         record.meeting.source_available = False
         record.meeting.updated_at = now
         for job in record.jobs:
-            if job.job_id is None and job.cleanup_status == "pending":
+            if (
+                job.job_id is None
+                and job.submit_started is False
+                and job.cleanup_status == "pending"
+            ):
                 job.cleanup_status = "expired"
         states = [
             record.local_cleanup_status,

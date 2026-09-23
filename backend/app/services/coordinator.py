@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from app.models.gpu import GPUContextV1
 from app.models.insights import ResultBundleV1
-from app.models.meeting import Failure, Meeting, MeetingRecord
+from app.models.meeting import CleanupStatus, Failure, Meeting, MeetingRecord
 from app.services.artifact_store import (
     ArtifactIntegrityError,
     ArtifactNotReady,
@@ -67,6 +67,7 @@ class MeetingCoordinator:
 
     async def _process(self, owner_id: UUID, meeting_id: UUID) -> Meeting:
         record = self.store.read_record(owner_id, meeting_id)
+        await self._reconcile_pending_jobs(record)
         try:
             try:
                 return await self._advance(record)
@@ -87,6 +88,35 @@ class MeetingCoordinator:
                 return self._fail(record, code)
         except (GPUUnavailable, OSError):
             return self.store.read_meeting(owner_id, meeting_id)
+
+    async def _reconcile_pending_jobs(self, record: MeetingRecord) -> None:
+        """Confirm old/failed GPU cleanup without retrieving results or sending ACK."""
+        changed = False
+        for job in record.jobs:
+            if job.job_id is None or job.cleanup_status != "pending":
+                continue
+            current = job.attempt == record.meeting.attempt
+            if current and record.meeting.status in {"queued", "processing"}:
+                continue
+            if (
+                current
+                and record.meeting.status in {"review_required", "approved"}
+                and job.ack_pending
+            ):
+                continue
+            try:
+                remote = await self.gpu.get_job(job.job_id)
+            except GPUClientError:
+                continue
+            if remote.job_id != job.job_id or remote.cleanup_status == "pending":
+                continue
+            job.cleanup_status = remote.cleanup_status
+            job.receipt_expires_at = remote.receipt_expires_at
+            job.ack_pending = False
+            changed = True
+        if changed:
+            record.meeting.cleanup_status = self._cleanup_status(record)
+            self._save(record)
 
     async def _advance(self, record: MeetingRecord) -> Meeting:
         owner_id, meeting = record.owner_id, record.meeting
@@ -131,6 +161,8 @@ class MeetingCoordinator:
                 language_hint=meeting.language_hint,
                 audio_sha256=record.audio_sha256,
             )
+            job.submit_started = True
+            self._save(record)
             remote = await self.gpu.submit(audio_path, context)
         else:
             remote = await self.gpu.get_job(job.job_id)
@@ -183,18 +215,18 @@ class MeetingCoordinator:
                 job.cleanup_status = receipt.cleanup_status
                 job.receipt_expires_at = receipt.receipt_expires_at
                 job.ack_pending = False
+        record.meeting.cleanup_status = self._cleanup_status(record)
+        return self._save(record)
+
+    @staticmethod
+    def _cleanup_status(record: MeetingRecord) -> CleanupStatus:
         statuses = [
             record.local_cleanup_status,
             *(job.cleanup_status for job in record.jobs),
         ]
-        record.meeting.cleanup_status = (
-            "pending"
-            if "pending" in statuses
-            else "expired"
-            if "expired" in statuses
-            else "deleted"
-        )
-        return self._save(record)
+        if "pending" in statuses:
+            return "pending"
+        return "expired" if "expired" in statuses else "deleted"
 
     def _fail(self, record: MeetingRecord, code: str) -> Meeting:
         record.meeting.stage = None

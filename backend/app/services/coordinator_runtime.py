@@ -16,6 +16,7 @@ from app.services.local_janitor import LocalJanitor
 
 logger = logging.getLogger(__name__)
 
+
 class CoordinatorStep(Protocol):
     async def process_once(self, owner_id: UUID, meeting_id: UUID) -> object: ...
 
@@ -74,9 +75,20 @@ class CoordinatorRuntime:
                             if not acquired:
                                 continue
                             meeting = self.store.read_meeting(owner_id, meeting_id)
-                            if meeting.status in {"queued", "processing"} or (
-                                meeting.status in {"review_required", "approved"}
-                                and meeting.cleanup_status == "pending"
+                            pending_failed_job = meeting.status == "failed" and any(
+                                job.job_id is not None
+                                and job.cleanup_status == "pending"
+                                for job in self.store.read_record(
+                                    owner_id, meeting_id
+                                ).jobs
+                            )
+                            if (
+                                meeting.status in {"queued", "processing"}
+                                or (
+                                    meeting.status in {"review_required", "approved"}
+                                    and meeting.cleanup_status == "pending"
+                                )
+                                or pending_failed_job
                             ):
                                 await self.coordinator.process_once(
                                     owner_id, meeting_id

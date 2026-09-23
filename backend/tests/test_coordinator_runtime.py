@@ -3,7 +3,7 @@
 import asyncio
 import json
 import threading
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from uuid import UUID
 
@@ -14,7 +14,7 @@ from test_coordinator import FakeGPUClient
 
 from app.core.config import Settings
 from app.main import create_app
-from app.models.meeting import MeetingMetadata
+from app.models.meeting import Failure, MeetingMetadata
 from app.services.artifact_store import LocalArtifactStore
 from app.services.coordinator import CoordinatorStorageError, MeetingCoordinator
 from app.services.coordinator_runtime import CoordinatorRuntime
@@ -85,6 +85,35 @@ async def test_runtime_skips_terminal_meeting_with_completed_cleanup(
     await CoordinatorRuntime(store, coordinator).tick()
 
     assert coordinator.calls == []
+
+
+async def test_runtime_revisits_failed_meeting_for_gpu_cleanup_receipt(
+    tmp_path: Path,
+) -> None:
+    store = LocalArtifactStore(tmp_path)
+    meeting_id = create_meeting(store)
+    gpu = FakeGPUClient(bundle(meeting_id))
+    record = store.read_record(OWNER, meeting_id)
+    record.meeting.status = "failed"
+    record.meeting.failure = Failure(
+        code="processing_failed", message="Не удалось обработать запись"
+    )
+    record.jobs[0].job_id = gpu.job.job_id
+    store.delete_upload(OWNER, meeting_id)
+    record.local_cleanup_status = "deleted"
+    store.update_meeting(OWNER, record)
+    gpu.job = gpu.job.model_copy(
+        update={
+            "status": "expired",
+            "cleanup_status": "expired",
+            "receipt_expires_at": datetime.now(UTC) + timedelta(days=7),
+        }
+    )
+
+    await CoordinatorRuntime(store, MeetingCoordinator(store, gpu)).tick()
+
+    assert store.read_meeting(OWNER, meeting_id).cleanup_status == "expired"
+    assert gpu.calls == ["poll"]
 
 
 class BlockingCoordinator:
@@ -265,6 +294,7 @@ async def test_app_lifespan_resumes_queued_meeting(
             coordinator_poll_seconds=0.01,
         ),
     )
+
     def gpu_factory(
         base_url: str, service_token: str, *, timeout: float
     ) -> StartupFakeGPU:
@@ -280,9 +310,13 @@ async def test_app_lifespan_resumes_queued_meeting(
 
     async with app.router.lifespan_context(app):
         async with asyncio.timeout(1):
-            while LocalArtifactStore(tmp_path).read_record(
-                OWNER, meeting_id
-            ).jobs[0].job_id is None:
+            while (
+                LocalArtifactStore(tmp_path)
+                .read_record(OWNER, meeting_id)
+                .jobs[0]
+                .job_id
+                is None
+            ):
                 await asyncio.sleep(0.01)
 
     assert LocalArtifactStore(tmp_path).read_meeting(OWNER, meeting_id).status == (

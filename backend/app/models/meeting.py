@@ -126,6 +126,8 @@ class Meeting(MeetingMetadata):
 class JobRecord(StrictModel):
     attempt: PositiveInt
     job_id: UUID | None = None
+    # None marks legacy state where a send may have happened before this field existed.
+    submit_started: StrictBool | None = None
     result_hash: Sha256 | None = None
     cleanup_status: CleanupStatus = "pending"
     expires_at: datetime | None = None
