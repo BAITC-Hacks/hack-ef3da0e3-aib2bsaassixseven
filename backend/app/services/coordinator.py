@@ -173,7 +173,9 @@ class MeetingCoordinator:
                 )
                 job.submit_started = True
                 self._save(record)
-                remote = await self.gpu.submit(audio_path, context)
+                remote = await self.gpu.submit(
+                    audio_path, context, audio_extension=record.audio_extension
+                )
         else:
             remote = await self.gpu.get_job(job.job_id)
         if job.job_id is not None and job.job_id != remote.job_id:

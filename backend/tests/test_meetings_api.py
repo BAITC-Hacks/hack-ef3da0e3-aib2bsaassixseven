@@ -1,4 +1,4 @@
-"""Public meeting API tests use only generated WAV bytes and temporary storage."""
+"""Public meeting API tests use generated WAV and tiny encoded audio fixtures."""
 
 import io
 import json
@@ -20,6 +20,7 @@ from app.services.artifact_store import LocalArtifactStore
 OWNER = UUID("11111111-1111-4111-8111-111111111111")
 OTHER = UUID("22222222-2222-4222-8222-222222222222")
 HEADERS = {"Authorization": "Bearer valid"}
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 class Verifier:
@@ -107,6 +108,7 @@ async def test_valid_upload_is_durable_and_owner_scoped(
     meeting_id = UUID(meeting["id"])
     record = store.read_record(OWNER, meeting_id)
     assert record.jobs[0].attempt == 1
+    assert record.audio_extension == ".wav"
     assert store.upload_path(OWNER, meeting_id).read_bytes() == wav_bytes()
 
     same = await client.get(f"/api/v1/meetings/{meeting_id}", headers=HEADERS)
@@ -128,6 +130,71 @@ async def test_valid_upload_is_durable_and_owner_scoped(
         )
         assert pending.status_code == 409
         assert pending.json()["code"] == "invalid_state"
+
+
+async def test_browser_recording_source_survives_read_and_list(
+    client: AsyncClient, store: LocalArtifactStore
+) -> None:
+    encoded_audio = (FIXTURES / "browser-recording.webm").read_bytes()
+    response = await upload(
+        client,
+        filename="recording.webm",
+        content=encoded_audio,
+        payload=metadata(source_kind="browser_recording"),
+    )
+    assert response.status_code == 202
+    meeting = response.json()
+    assert meeting["source"]["kind"] == "browser_recording"
+    assert "source_kind" not in meeting
+    meeting_id = meeting["id"]
+    read = await client.get(f"/api/v1/meetings/{meeting_id}", headers=HEADERS)
+    listed = await client.get("/api/v1/meetings", headers=HEADERS)
+    assert read.json()["source"]["kind"] == "browser_recording"
+    assert listed.json()["items"][0]["source"]["kind"] == "browser_recording"
+    assert store.upload_path(OWNER, UUID(meeting_id)).read_bytes() == encoded_audio
+    assert store.read_record(OWNER, UUID(meeting_id)).audio_extension == ".webm"
+
+
+@pytest.mark.parametrize("extension", [".mp3", ".m4a", ".ogg"])
+async def test_existing_encoded_upload_formats_preserve_their_extension(
+    client: AsyncClient, store: LocalArtifactStore, extension: str
+) -> None:
+    encoded_audio = (FIXTURES / f"upload{extension}").read_bytes()
+    response = await upload(
+        client, filename=f"upload{extension}", content=encoded_audio
+    )
+    assert response.status_code == 202
+    meeting_id = UUID(response.json()["id"])
+    assert response.json()["source"]["kind"] == "uploaded_audio"
+    assert store.read_record(OWNER, meeting_id).audio_extension == extension
+    assert store.upload_path(OWNER, meeting_id).read_bytes() == encoded_audio
+
+
+@pytest.mark.parametrize(
+    "fixture",
+    ["webm-vorbis.webm", "matroska-opus.mkv"],
+)
+async def test_browser_recording_rejects_non_webm_opus(
+    client: AsyncClient, store: LocalArtifactStore, fixture: str
+) -> None:
+    response = await upload(
+        client,
+        filename="recording.webm",
+        content=(FIXTURES / fixture).read_bytes(),
+        payload=metadata(source_kind="browser_recording"),
+    )
+    assert response.status_code == 415
+    assert response.json()["code"] == "unsupported_media_type"
+    assert store.list_meetings(OWNER) == []
+
+
+@pytest.mark.parametrize("source_kind", ["demo_fixture", "unknown", None, 1])
+async def test_public_upload_rejects_invalid_source_kind(
+    client: AsyncClient, store: LocalArtifactStore, source_kind: object
+) -> None:
+    result = await upload(client, payload=metadata(source_kind=source_kind))
+    assert result.status_code == 422
+    assert store.list_meetings(OWNER) == []
 
 
 async def test_uploaded_filename_is_never_a_storage_path(
@@ -237,6 +304,14 @@ async def test_bad_metadata_media_type_and_uuid(
     invalid_id = await client.get("/api/v1/meetings/not-a-uuid", headers=HEADERS)
     assert invalid_id.status_code == 422
     assert invalid_id.json()["code"] == "invalid_request"
+
+
+async def test_native_formdata_metadata_field_without_content_type(
+    client: AsyncClient, store: LocalArtifactStore
+) -> None:
+    result = await upload(client, metadata_type="")
+    assert result.status_code == 202
+    assert len(store.list_meetings(OWNER)) == 1
 
 
 async def test_missing_parts_are_422_without_meeting(

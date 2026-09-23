@@ -40,14 +40,22 @@ class FakeGPUClient(GPUClient):
         self.lookup: JobV1 | Exception = GPUDomainError(404, "job_not_found")
         self.calls: list[str] = []
         self.contexts: list[GPUContextV1] = []
+        self.audio_extensions: list[str | None] = []
 
     def check(self, operation: str) -> None:
         self.calls.append(operation)
         if self.error is not None:
             raise self.error
 
-    async def submit(self, audio_path: Path, context: GPUContextV1) -> JobV1:
+    async def submit(
+        self,
+        audio_path: Path,
+        context: GPUContextV1,
+        *,
+        audio_extension: str | None = None,
+    ) -> JobV1:
         assert audio_path.read_bytes() == b"synthetic audio"
+        self.audio_extensions.append(audio_extension)
         self.contexts.append(context)
         self.check("submit")
         return self.job
@@ -88,6 +96,20 @@ def setup(tmp_path: Path) -> tuple[LocalArtifactStore, UUID, Meeting, FakeGPUCli
     owner = uuid4()
     meeting = store.create_meeting(owner, metadata(), b"synthetic audio")
     return store, owner, meeting, FakeGPUClient(bundle(meeting.id))
+
+
+async def test_submit_uses_persisted_audio_extension_after_reload(
+    tmp_path: Path,
+) -> None:
+    store = LocalArtifactStore(tmp_path)
+    owner = uuid4()
+    meeting = store.create_meeting(
+        owner, metadata(), b"synthetic audio", audio_extension=".webm"
+    )
+    gpu = FakeGPUClient(bundle(meeting.id))
+    coordinator = MeetingCoordinator(LocalArtifactStore(tmp_path), gpu)
+    await coordinator.process_once(owner, meeting.id)
+    assert gpu.audio_extensions == [".webm"]
 
 
 async def test_submit_timeout_resumes_same_context_and_attempt(

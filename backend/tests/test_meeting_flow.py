@@ -43,8 +43,16 @@ class Verifier:
 class UploadGPU(FakeGPUClient):
     expected_audio: bytes = wav_bytes()
 
-    async def submit(self, audio_path: Path, context: GPUContextV1) -> JobV1:
+    async def submit(
+        self,
+        audio_path: Path,
+        context: GPUContextV1,
+        *,
+        audio_extension: str | None = None,
+    ) -> JobV1:
         assert audio_path.read_bytes() == self.expected_audio
+        assert audio_extension == ".wav"
+        self.audio_extensions.append(audio_extension)
         self.contexts.append(context)
         self.check("submit")
         return self.job
