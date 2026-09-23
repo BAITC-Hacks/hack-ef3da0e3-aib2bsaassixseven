@@ -1,0 +1,116 @@
+@use "../../../styles/tokens" as tokens;
+
+.primaryAction {
+  min-height: 2.5rem;
+  padding: 0 tokens.$space-4;
+  border: 1px solid var(--color-accent);
+  border-radius: tokens.$radius-small;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-3;
+  margin-top: tokens.$space-6;
+
+  input,
+  select {
+    min-height: 2.5rem;
+    padding: 0 tokens.$space-3;
+    border: 1px solid var(--color-border);
+    border-radius: tokens.$radius-small;
+    background: var(--color-surface);
+  }
+
+  input {
+    width: min(100%, 22rem);
+  }
+}
+
+.tableWrap {
+  margin-top: tokens.$space-5;
+  overflow-x: auto;
+  border-top: 1px solid var(--color-border);
+}
+
+.tableWrap table {
+  width: 100%;
+  min-width: 46rem;
+  border-collapse: collapse;
+  text-align: left;
+
+  th,
+  td {
+    padding: tokens.$space-4 tokens.$space-3;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.82rem;
+  }
+
+  th {
+    color: var(--color-text-muted);
+    font-weight: 500;
+  }
+
+  td:first-child {
+    display: grid;
+    gap: tokens.$space-1;
+
+    a {
+      font-weight: 650;
+    }
+
+    span {
+      color: var(--color-text-muted);
+      font-size: 0.75rem;
+    }
+  }
+
+  td[data-status="review_required"] {
+    color: #8a5d18;
+  }
+
+  td[data-status="processing"] {
+    color: #66579b;
+  }
+
+  td[data-status="approved"] {
+    color: #356b54;
+  }
+
+  td:last-child {
+    text-align: right;
+
+    button {
+      border: 0;
+      background: transparent;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      font-size: 0.78rem;
+    }
+  }
+}
+
+.empty {
+  display: grid;
+  justify-items: start;
+  gap: tokens.$space-3;
+  padding: 4rem 0;
+  color: var(--color-text-muted);
+
+  p {
+    margin: 0;
+  }
+
+  button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-accent);
+    cursor: pointer;
+    font-weight: 650;
+  }
+}

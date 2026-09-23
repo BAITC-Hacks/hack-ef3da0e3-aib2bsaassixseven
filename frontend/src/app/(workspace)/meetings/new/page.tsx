@@ -1,14 +1,18 @@
-import type { Metadata } from "next";
+"use client";
 
-import { PageHeader } from "@/components/ui/page-header";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-export const metadata: Metadata = { title: "Новое совещание" };
+import { useDemoWorkspace } from "@/features/demo-workspace/demo-workspace-provider";
 
 export default function NewMeetingPage() {
-  return (
-    <PageHeader
-      description="Форма загрузки записи и настройки участников будет реализована по утверждённому дизайн-референсу."
-      title="Новое совещание"
-    />
-  );
+  const router = useRouter();
+  const { openNewMeeting } = useDemoWorkspace();
+
+  useEffect(() => {
+    openNewMeeting();
+    router.replace("/meetings");
+  }, [openNewMeeting, router]);
+
+  return null;
 }

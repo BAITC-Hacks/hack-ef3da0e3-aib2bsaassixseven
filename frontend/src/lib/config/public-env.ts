@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const publicEnvSchema = z.object({
   NEXT_PUBLIC_API_URL: z.url().default("http://localhost:8000/api/v1"),
-  NEXT_PUBLIC_APP_NAME: z.string().min(1).default("Hackalem"),
+  NEXT_PUBLIC_APP_NAME: z.string().min(1).default("Tirke"),
   NEXT_PUBLIC_SITE_URL: z.url().default("http://localhost:3000"),
   NEXT_PUBLIC_SUPABASE_URL: z.url().default("https://example.supabase.co"),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z

@@ -6,8 +6,8 @@ import "./globals.scss";
 
 export const metadata: Metadata = {
   title: {
-    default: "Hackalem",
-    template: "%s · Hackalem",
+    default: "Tirke",
+    template: "%s · Tirke",
   },
   description:
     "Private meeting transcription, review, and protocol export.",

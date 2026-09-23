@@ -23,7 +23,7 @@ pids+=("$!")
 npm --prefix frontend run dev &
 pids+=("$!")
 
-echo "Hackalem is starting:"
+echo "Tirke is starting:"
 echo "  Web: http://localhost:3000"
 echo "  API: http://localhost:8000/docs"
 echo "Press Ctrl+C to stop both services."

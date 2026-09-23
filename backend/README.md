@@ -1,4 +1,4 @@
-# Hackalem API
+# Tirke API
 
 FastAPI service for authenticated business endpoints.
 

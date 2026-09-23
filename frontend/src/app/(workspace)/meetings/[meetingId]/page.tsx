@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { PageHeader } from "@/components/ui/page-header";
+import { MeetingDetailView } from "@/features/meetings/ui/meeting-detail-view";
 
 export const metadata: Metadata = { title: "Протокол совещания" };
 
@@ -11,10 +11,5 @@ export default async function MeetingDetailPage({
 }) {
   const { meetingId } = await params;
 
-  return (
-    <PageHeader
-      description={`Карточка совещания ${meetingId}: обработка, транскрипт, саммари, поручения и экспорт.`}
-      title="Протокол совещания"
-    />
-  );
+  return <MeetingDetailView meetingId={meetingId} />;
 }

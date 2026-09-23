@@ -2,7 +2,7 @@
 
 ## Goal
 
-Prepare `hackalem` as a starter for a hackathon team using Next.js, FastAPI, and Supabase. A developer should be able to add Supabase credentials, start both applications, create an account, sign in, open a protected dashboard, and call a protected FastAPI endpoint.
+Prepare `tirke` as a starter for a hackathon team using Next.js, FastAPI, and Supabase. A developer should be able to add Supabase credentials, start both applications, create an account, sign in, open a protected dashboard, and call a protected FastAPI endpoint.
 
 ## Scope
 
@@ -31,7 +31,7 @@ The browser does not receive the Supabase service-role key. The starter does not
 ## Repository Layout
 
 ```text
-hackalem/
+tirke/
 ├── backend/
 │   ├── app/
 │   │   ├── api/routes/

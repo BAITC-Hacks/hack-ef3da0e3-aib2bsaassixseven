@@ -37,7 +37,7 @@ try {
         -NoNewWindow `
         -PassThru
 
-    Write-Host "Hackalem is starting:"
+    Write-Host "Tirke is starting:"
     Write-Host "  Web: http://localhost:3000"
     Write-Host "  API: http://localhost:8000/docs"
     Write-Host "Press Ctrl+C to stop both services."

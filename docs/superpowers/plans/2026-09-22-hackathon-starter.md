@@ -82,7 +82,7 @@ Use safe placeholders so the app and tests start without secrets:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    app_name: str = "Hackalem API"
+    app_name: str = "Tirke API"
     frontend_origin: str = "http://localhost:3000"
     supabase_url: str = "https://example.supabase.co"
     supabase_publishable_key: str = "replace-with-publishable-key"
@@ -493,9 +493,9 @@ The server page calls `supabase.auth.getClaims()` and redirects missing claims t
 
 - [ ] **Step 5: Apply the technical-cockpit visual system**
 
-Replace the Create Next App screen. Define CSS tokens for ink, paper, lime, cyan, borders, radii, shadows, spacing, and motion. Use a grid-texture background, asymmetric status rail, mono labels, responsive cards, visible focus styles, one `h1` per page, and a reduced-motion override. Keep all copy product-neutral under the name "Hackalem Launchpad".
+Replace the Create Next App screen. Define CSS tokens for ink, paper, lime, cyan, borders, radii, shadows, spacing, and motion. Use a grid-texture background, asymmetric status rail, mono labels, responsive cards, visible focus styles, one `h1` per page, and a reduced-motion override. Keep all copy product-neutral under the name "Tirke Launchpad".
 
-Update metadata to `Hackalem Launchpad` with the description `Next.js, FastAPI, and Supabase hackathon starter`.
+Update metadata to `Tirke Launchpad` with the description `Next.js, FastAPI, and Supabase hackathon starter`.
 
 - [ ] **Step 6: Verify dashboard and production build**
 

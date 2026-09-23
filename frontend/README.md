@@ -1,9 +1,8 @@
 # Frontend
 
-Next.js App Router frontend for the meeting auto-protocol system. This initial
-scaffold establishes routes, Sass architecture, runtime contracts, testing,
-and CI-friendly commands. It intentionally does not implement the final visual
-design yet.
+Next.js App Router frontend for the meeting auto-protocol system. It includes
+Supabase authentication, a local demo session, Sass architecture, runtime
+contracts, testing, and the complete MVP workspace flow.
 
 ## Start
 
@@ -15,6 +14,12 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+When Supabase credentials are absent, choose **Продолжить в демо-режиме** on
+the login page. The demo covers creating and processing a meeting, reviewing
+the transcript and assignments, approval, sharing/printing, task tracking,
+deletion, and profile editing. Demo changes are intentionally in-memory until
+the backend meeting API is implemented.
+
 ## Structure
 
 ```text
@@ -22,8 +27,12 @@ src/app/                 Routes, layouts, metadata, global styles
 src/components/layout/   Product shell and navigation
 src/components/providers Global client-side providers
 src/components/ui/       Reusable presentation primitives
-src/features/meetings/   Meeting, participant, transcript contracts and UI
-src/features/assignments/ Assignment/evidence contracts and review UI
+src/features/auth/       Supabase and demo authentication flow
+src/features/dashboard/  Workspace overview
+src/features/meetings/   Meeting creation, lists, and review UI
+src/features/assignments/ Task list and assignment contracts
+src/features/profile/    User settings
+src/features/demo-workspace/ Temporary UI state adapter for backend handoff
 src/lib/api/             Transport and API-boundary helpers
 src/lib/config/          Validated runtime configuration
 src/styles/              Sass tokens and reusable mixins

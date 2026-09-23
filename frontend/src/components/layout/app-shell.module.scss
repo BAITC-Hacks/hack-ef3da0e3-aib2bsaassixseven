@@ -1,69 +1,16 @@
 @use "../../styles/tokens" as tokens;
 
 .shell {
-  min-height: 100vh;
-
-  @include tokens.tablet {
-    display: grid;
-    grid-template-columns: 15.5rem minmax(0, 1fr);
-  }
-}
-
-.sidebar {
-  padding: tokens.$space-5;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface);
-
-  @include tokens.tablet {
-    min-height: 100vh;
-    border-right: 1px solid var(--color-border);
-    border-bottom: 0;
-  }
-}
-
-.brand {
-  font-size: 1rem;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-}
-
-.navigation {
-  margin-top: tokens.$space-8;
-}
-
-.navigationList {
-  display: grid;
-  gap: tokens.$space-1;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.navigationLink {
-  display: block;
-  padding: tokens.$space-2 tokens.$space-3;
-  border-radius: tokens.$radius-small;
-  color: var(--color-text-muted);
-  font-size: 0.875rem;
-  transition:
-    color 150ms ease,
-    background-color 150ms ease;
-
-  &:hover {
-    background: var(--color-surface-muted);
-    color: var(--color-text);
-  }
+  min-height: 100dvh;
+  background: var(--color-background);
 }
 
 .content {
-  min-width: 0;
-  padding: tokens.$space-8 tokens.$space-5;
+  width: min(100%, 76rem);
+  margin: 0 auto;
+  padding: tokens.$space-8 tokens.$space-5 4rem;
 
   @include tokens.tablet {
     padding-inline: tokens.$space-8;
-  }
-
-  @media (min-width: tokens.$breakpoint-desktop) {
-    padding-inline: tokens.$space-10;
   }
 }
