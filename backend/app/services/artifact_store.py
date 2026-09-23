@@ -625,3 +625,45 @@ class LocalArtifactStore:
         return self._check(
             self._folder(owner_id, meeting_id) / f"review-{revision}.pdf"
         )
+
+    def read_pdf_cache(
+        self, owner_id: UUID, meeting_id: UUID, revision: int
+    ) -> bytes:
+        """Verify cached bytes are bound to this owner, meeting, and revision."""
+        path = self.pdf_path(owner_id, meeting_id, revision)
+        data = self._read(path)
+        try:
+            marker = self._read(path.with_name(path.name + ".sha256"))
+        except FileNotFoundError as error:
+            raise ArtifactIntegrityError("PDF cache marker missing") from error
+        if marker != self._pdf_cache_marker(owner_id, meeting_id, revision, data):
+            raise ArtifactIntegrityError("PDF cache marker mismatch")
+        return data
+
+    @staticmethod
+    def _pdf_cache_marker(
+        owner_id: UUID, meeting_id: UUID, revision: int, data: bytes
+    ) -> bytes:
+        digest = hashlib.sha256(data).hexdigest()
+        return f"{owner_id}:{meeting_id}:{revision}:{digest}\n".encode("ascii")
+
+    def write_pdf_cache(
+        self, owner_id: UUID, meeting_id: UUID, revision: int, data: bytes
+    ) -> None:
+        """Publish a PDF for one revision without replacing an existing export."""
+        path = self.pdf_path(owner_id, meeting_id, revision)
+        self._atomic_write(path, data, immutable=True)
+        self._atomic_write(
+            path.with_name(path.name + ".sha256"),
+            self._pdf_cache_marker(owner_id, meeting_id, revision, data),
+            immutable=True,
+        )
+
+    def delete_pdf_cache(
+        self, owner_id: UUID, meeting_id: UUID, revision: int
+    ) -> None:
+        """Remove an invalid cache entry before regenerating that revision."""
+        path = self.pdf_path(owner_id, meeting_id, revision)
+        path.unlink(missing_ok=True)
+        path.with_name(path.name + ".sha256").unlink(missing_ok=True)
+        self._sync_directory(path.parent)
