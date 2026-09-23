@@ -119,14 +119,21 @@ async def create_meeting(
     store: Annotated[LocalArtifactStore, Depends(get_artifact_store)],
 ) -> Meeting:
     try:
-        audio, metadata = await parse_upload(request)
+        audio, metadata, source_kind = await parse_upload(request)
         try:
-            path = await asyncio.to_thread(stage_and_validate, audio, store)
+            path, audio_extension = await asyncio.to_thread(
+                stage_and_validate, audio, store
+            )
         finally:
             await audio.close()
         try:
             meeting = await asyncio.to_thread(
-                store.create_meeting, user.id, metadata, path
+                store.create_meeting,
+                user.id,
+                metadata,
+                path,
+                source_kind=source_kind,
+                audio_extension=audio_extension,
             )
         except BaseException:
             try:

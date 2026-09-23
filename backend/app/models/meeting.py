@@ -28,6 +28,8 @@ MeetingStage = Literal[
 ]
 CleanupStatus = Literal["pending", "deleted", "expired"]
 LanguageHint = Literal["auto", "ru", "kk", "mixed"]
+PublicSourceKind = Literal["uploaded_audio", "browser_recording"]
+AudioExtension = Literal[".wav", ".mp3", ".m4a", ".ogg", ".webm"]
 PositiveInt = Annotated[StrictInt, Field(ge=1)]
 
 
@@ -63,8 +65,12 @@ class MeetingMetadata(StrictModel):
         return value
 
 
+class MeetingUploadMetadata(MeetingMetadata):
+    source_kind: PublicSourceKind = "uploaded_audio"
+
+
 class MeetingSource(StrictModel):
-    kind: Literal["uploaded_audio", "demo_fixture"]
+    kind: Literal["uploaded_audio", "browser_recording", "demo_fixture"]
     label: Literal["Подготовленный пример · обработка выполнена заранее"] | None = None
     fixture_id: NonEmptyText | None = None
 
@@ -74,10 +80,10 @@ class MeetingSource(StrictModel):
             self.label is None or self.fixture_id is None
         ):
             raise ValueError("Demo source needs its label and fixture ID")
-        if self.kind == "uploaded_audio" and (
+        if self.kind != "demo_fixture" and (
             self.label is not None or self.fixture_id is not None
         ):
-            raise ValueError("Uploaded source cannot be marked as demo")
+            raise ValueError("Audio source cannot be marked as demo")
         return self
 
 
@@ -139,6 +145,7 @@ class MeetingRecord(VersionedModel):
     owner_id: UUID
     meeting: Meeting
     audio_sha256: Sha256 | None
+    audio_extension: AudioExtension | None = None
     local_cleanup_status: CleanupStatus
     jobs: list[JobRecord] = Field(default_factory=lambda: list[JobRecord]())
 

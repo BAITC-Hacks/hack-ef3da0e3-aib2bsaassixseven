@@ -10,6 +10,7 @@ import pytest
 
 from app.models.gpu import GPUContextV1
 from app.models.insights import canonical_json
+from app.models.meeting import AudioExtension
 from app.services.gpu_client import (
     GPUClient,
     GPUDomainError,
@@ -129,6 +130,47 @@ async def test_submit_exact_multipart_headers_and_stable_key(tmp_path: Path) -> 
             "language_hint": "mixed",
             "audio_sha256": hashlib.sha256(b"abc").hexdigest(),
         }
+
+
+@pytest.mark.parametrize(
+    ("extension", "content_type"),
+    [
+        (".wav", "audio/wav"),
+        (".mp3", "audio/mpeg"),
+        (".m4a", "audio/mp4"),
+        (".ogg", "audio/ogg"),
+        (".webm", "audio/webm"),
+    ],
+)
+async def test_submit_preserves_validated_upload_format_after_private_rename(
+    tmp_path: Path, extension: AudioExtension, content_type: str
+) -> None:
+    audio = tmp_path / "upload.bin"
+    audio.write_bytes(b"abc")
+    requests: list[httpx.Request] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(202, json=job())
+
+    async with GPUClient(
+        "https://gpu.example", "service-secret", transport=httpx.MockTransport(respond)
+    ) as client:
+        await client.submit(audio, context(), audio_extension=extension)
+
+    message = BytesParser(policy=default).parsebytes(
+        b"Content-Type: "
+        + requests[0].headers["content-type"].encode()
+        + b"\r\n\r\n"
+        + requests[0].read()
+    )
+    audio_part = next(
+        part
+        for part in message.iter_parts()
+        if part.get_param("name", header="content-disposition") == "audio"
+    )
+    assert audio_part.get_content_type() == content_type
+    assert audio_part.get_filename() == f"audio{extension}"
 
 
 @pytest.mark.asyncio

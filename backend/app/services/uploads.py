@@ -14,7 +14,12 @@ from pydantic import ValidationError
 from starlette.datastructures import UploadFile
 from starlette.formparsers import MultiPartException, MultiPartParser
 
-from app.models.meeting import MeetingMetadata
+from app.models.meeting import (
+    AudioExtension,
+    MeetingMetadata,
+    MeetingUploadMetadata,
+    PublicSourceKind,
+)
 from app.services.artifact_store import LocalArtifactStore
 
 MAX_AUDIO_BYTES = 100 * 1024 * 1024
@@ -54,7 +59,7 @@ class BoundedMeetingParser(MultiPartParser):
         elif (
             part.file is not None
             or headers.get(b"content-type", b"").split(b";", 1)[0].strip().lower()
-            != b"application/json"
+            not in {b"", b"application/json"}
         ):
             raise UploadError(422, "invalid_request")
 
@@ -66,7 +71,9 @@ class BoundedMeetingParser(MultiPartParser):
         super().on_part_data(data, start, end)
 
 
-async def parse_upload(request: Request) -> tuple[UploadFile, MeetingMetadata]:
+async def parse_upload(
+    request: Request,
+) -> tuple[UploadFile, MeetingMetadata, PublicSourceKind]:
     if (
         not request.headers.get("content-type", "")
         .lower()
@@ -93,17 +100,22 @@ async def parse_upload(request: Request) -> tuple[UploadFile, MeetingMetadata]:
             r"[0-9]{4}-[0-9]{2}-[0-9]{2}", meeting_date
         ):
             raise ValueError("Invalid meeting date")
-        validated = MeetingMetadata.model_validate(payload)
+        validated = MeetingUploadMetadata.model_validate(payload)
     except (ValueError, ValidationError) as error:
         await form.close()
         raise UploadError(422, "invalid_request") from error
     if parser.audio_bytes == 0:
         await form.close()
         raise UploadError(415, "unsupported_media_type")
-    return audio, validated
+    meeting_metadata = MeetingMetadata.model_validate(
+        validated.model_dump(exclude={"source_kind"})
+    )
+    return audio, meeting_metadata, validated.source_kind
 
 
-def stage_and_validate(audio: UploadFile, store: LocalArtifactStore) -> Path:
+def stage_and_validate(
+    audio: UploadFile, store: LocalArtifactStore
+) -> tuple[Path, AudioExtension]:
     """Copy a parsed, size-bounded file to private staging and validate audio."""
     suffix = Path(audio.filename or "").suffix.lower()
     if suffix not in ALLOWED_EXTENSIONS:
@@ -115,7 +127,7 @@ def stage_and_validate(audio: UploadFile, store: LocalArtifactStore) -> Path:
             output.flush()
             os.fsync(output.fileno())
         _validate_audio(path, suffix)
-        return path
+        return path, cast(AudioExtension, suffix)
     except BaseException:
         path.unlink(missing_ok=True)
         raise
@@ -151,7 +163,7 @@ def _validate_audio(path: Path, suffix: str) -> None:
                 "-v",
                 "error",
                 "-show_entries",
-                "format=format_name:stream=codec_type",
+                "format=format_name:stream=codec_name,codec_type",
                 "-of",
                 "json",
                 str(path),
@@ -182,3 +194,53 @@ def _validate_audio(path: Path, suffix: str) -> None:
         or not all(item.get("codec_type") == "audio" for item in streams)
     ):
         raise UploadError(415, "unsupported_media_type")
+    if suffix == ".webm" and (
+        not _has_webm_doctype(path)
+        or not all(item.get("codec_name") == "opus" for item in streams)
+    ):
+        raise UploadError(415, "unsupported_media_type")
+
+
+def _has_webm_doctype(path: Path) -> bool:
+    """Distinguish WebM from Matroska, which ffprobe reports under one format name."""
+    try:
+        with path.open("rb") as source:
+            data = source.read(4096)
+    except OSError:
+        return False
+    if not data.startswith(b"\x1a\x45\xdf\xa3"):
+        return False
+
+    def vint(offset: int, *, size: bool) -> tuple[int, int]:
+        if offset >= len(data):
+            raise ValueError
+        first = data[offset]
+        mask = 0x80
+        width = 1
+        while width <= 8 and not first & mask:
+            mask >>= 1
+            width += 1
+        if width > 8 or offset + width > len(data):
+            raise ValueError
+        value = first & (mask - 1) if size else first
+        for byte in data[offset + 1 : offset + width]:
+            value = (value << 8) | byte
+        return value, offset + width
+
+    try:
+        header_size, cursor = vint(4, size=True)
+        header_end = cursor + header_size
+        if header_end > len(data):
+            return False
+        while cursor < header_end:
+            element_id, cursor = vint(cursor, size=False)
+            element_size, cursor = vint(cursor, size=True)
+            end = cursor + element_size
+            if end > header_end:
+                return False
+            if element_id == 0x4282:
+                return data[cursor:end] == b"webm"
+            cursor = end
+    except ValueError:
+        return False
+    return False

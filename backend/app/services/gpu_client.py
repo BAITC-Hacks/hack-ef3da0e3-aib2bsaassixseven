@@ -10,6 +10,7 @@ from pydantic import BaseModel, ValidationError
 
 from app.models.gpu import AckV1, GPUContextV1, JobV1
 from app.models.insights import ResultBundleV1, Sha256
+from app.models.meeting import AudioExtension
 
 ResponseModel = TypeVar("ResponseModel", bound=BaseModel)
 
@@ -94,8 +95,14 @@ class GPUClient:
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def submit(self, audio_path: Path, context: GPUContextV1) -> JobV1:
-        suffix = audio_path.suffix.lower()
+    async def submit(
+        self,
+        audio_path: Path,
+        context: GPUContextV1,
+        *,
+        audio_extension: AudioExtension | None = None,
+    ) -> JobV1:
+        suffix = audio_extension or audio_path.suffix.lower()
         content_type = _AUDIO_TYPES.get(suffix, "application/octet-stream")
         headers = {"Idempotency-Key": f"{context.meeting_id}:{context.attempt}"}
         context_json = json.dumps(

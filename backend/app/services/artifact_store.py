@@ -26,11 +26,13 @@ from app.core.config import Settings
 from app.models.insights import InsightsV1, ResultBundleV1, canonical_json
 from app.models.meeting import (
     ArtifactHashes,
+    AudioExtension,
     JobRecord,
     Meeting,
     MeetingMetadata,
     MeetingRecord,
     MeetingSource,
+    PublicSourceKind,
     ReadyManifest,
 )
 from app.models.transcript import TranscriptV1
@@ -204,6 +206,8 @@ class LocalArtifactStore:
         metadata: MeetingMetadata,
         audio: BinaryIO | bytes | Path,
         *,
+        source_kind: PublicSourceKind = "uploaded_audio",
+        audio_extension: AudioExtension | None = None,
         retention_hours: int = 24,
     ) -> Meeting:
         """Commit upload and queued coordinator state before exposing a meeting.
@@ -230,7 +234,7 @@ class LocalArtifactStore:
             source_available=True,
             cleanup_status="pending",
             temporary_expires_at=now + timedelta(hours=retention_hours),
-            source=MeetingSource(kind="uploaded_audio"),
+            source=MeetingSource(kind=source_kind),
             failure=None,
         )
         close_source = isinstance(audio, bytes | Path)
@@ -261,6 +265,7 @@ class LocalArtifactStore:
             owner_id=owner_id,
             meeting=meeting,
             audio_sha256=digest.hexdigest(),
+            audio_extension=audio_extension,
             local_cleanup_status="pending",
             jobs=[JobRecord(attempt=1, submit_started=False)],
         )
