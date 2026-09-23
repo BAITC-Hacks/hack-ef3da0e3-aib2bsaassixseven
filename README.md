@@ -1,131 +1,104 @@
-# Hackalem
+# Hackalem — протокол совещания с проверяемыми поручениями
 
-AIB2BSaaSSixSeven hackathon team repository.
+Hackalem превращает запись совещания на русском, казахском или смешанной речи в черновик протокола: реплики с таймкодами и метками голосов, краткий итог и поручения с ответственными, сроками и ссылками на исходные фразы. Человек проверяет выводы перед утверждением документа. Проект решает практическую проблему ручного составления протоколов и потери контекста поручений.
 
-Hackalem is a meeting intelligence prototype with inference on the team's dedicated NVIDIA server and locally stored results. Its target MVP turns
-an uploaded Russian, Kazakh, or mixed-language meeting recording into a
-speaker-attributed transcript, reviewable summary and action items with source
-timestamps, followed by a human-approved PDF protocol.
+> **Статус на 23 сентября 2026 года, `main` на `10d65ec`: частично реализованный MVP.** В репозитории работают авторизация, backend загрузки встреч и конвейер обмена с GPU по согласованному контракту. Экран встреч, проверка человеком, PDF, GPU-сервис и проверка на реальных RU/KK/mixed записях ещё не интегрированы в `main`. Запуск приложения по инструкции ниже позволяет проверить стартер и API; он пока не демонстрирует полный путь «загрузка → PDF».
 
-The meeting flow is currently documented but not yet implemented. The existing
-code is the authenticated FastAPI, Next.js, and Supabase starter on which the
-MVP will be built.
+## Что должен уметь MVP
 
-## Product and architecture documentation
+1. Получить готовый аудиофайл совещания и показать состояние обработки.
+2. Распознать речь RU, KK и смешанную речь локальными моделями на выделенном NVIDIA-сервере команды; разделить реплики по голосам и сохранить таймкоды.
+3. Подготовить саммари и список поручений. Для каждого машинного вывода сохранить доказательство: цитату и ссылку на сегмент с таймкодом. Неизвестные имя, ответственный или срок остаются неизвестными.
+4. Дать человеку исправить расшифровку и выводы, подтвердить текущую ревизию и скачать PDF. Новая правка требует нового утверждения.
 
-- [Documentation index](docs/README.md)
-- [Product requirements](docs/product/PRD.md)
-- [Target users](docs/product/TARGET_USERS.md)
-- [Demo flow](docs/product/DEMO_FLOW.md)
-- [Technical requirements](docs/technical/TRD.md)
-- [Architecture](docs/technical/ARCHITECTURE.md)
-- [Planned API contract](docs/technical/API_CONTRACT.md)
-- [MVP design specification](docs/superpowers/specs/2026-09-23-meeting-intelligence-mvp-design.md)
+Запись прямо из вкладки браузера, подключение бота к Meet/Zoom/Teams, рассылки, напоминания и дашборд исполнения — следующие этапы. Текущий MVP принимает **готовый файл**, не слушает встречу в реальном времени.
 
-A hackathon-ready full-stack starter built with Next.js 16, FastAPI, and
-Supabase. It includes email authentication, a protected dashboard, verified
-JWTs, user-scoped database access, Row Level Security, tests, and CI.
+## Что реализовано в текущем `main`
 
-## How the request stays user-scoped
+| Область | Состояние |
+| --- | --- |
+| Next.js и Supabase Auth | Вход, подтверждение email, защищённый dashboard и проверка доступности API. Экран управления встречами пока отсутствует. |
+| FastAPI | Проверка JWT, ограничение доступа владельцем, создание/список/получение встречи, чтение готового транскрипта и выводов, retry и удаление. |
+| Загрузка | `multipart/form-data`, обязательное подтверждение уведомления участников, лимит 100 MiB, проверка содержимого WAV/MP3/M4A/OGG/WebM. Для форматов кроме WAV нужен `ffprobe`. |
+| Обработка | Файловое хранилище `data/`, фоновый coordinator, идемпотентный ключ `meeting_id:attempt`, восстановление после перезапуска, проверка схемы и хеша результата, сохранение до ACK, повтор очистки и TTL временного аудио 24 часа. |
+| Review и PDF | Контракт и отдельная работа команды есть; публичных маршрутов review/approve/export в этом `main` пока нет. |
+| ML | Контракт GPU API определён; код и веса NVIDIA-сервиса в этом checkout отсутствуют. Качество RU/KK/mixed здесь ещё не подтверждено. |
+
+`review_required` означает готовый **черновик**, а не уже утверждённый протокол. Статусы API: `queued`, `processing`, `review_required`, `approved`, `failed`; текущий backend не предоставляет действие для перехода в `approved`.
+
+## Архитектура и данные
 
 ```text
-Browser → Next.js / Supabase Auth → FastAPI → Supabase PostgREST → PostgreSQL
-              session cookie          JWT       same caller JWT        RLS
+Браузер / Next.js ── Supabase Auth ── FastAPI ── локальный data/
+                                         │              ↑
+                                         └── GPU API ────┘
+                                             NVIDIA-сервер команды
 ```
 
-Next.js owns the Supabase session. The browser sends its access token to
-FastAPI, which verifies the token and forwards that same token to Supabase.
-PostgreSQL therefore evaluates RLS as the signed-in user. No service-role key
-is used by the application.
+- Браузер передаёт FastAPI токен пользователя. Backend проверяет владельца встречи; GPU получает только серверный credential, а не пользовательский JWT.
+- Аудио и текст встречи передаются между backend и выделенным NVIDIA-сервером. Внешние AI API в схеме не используются. Supabase применяется для входа и профиля; записи, транскрипты и поручения в него не записываются. Поэтому текущее приложение **не является полностью автономным on-prem решением**: вход пока зависит от Supabase.
+- Backend держит результат в локальном `data/` (обычно `backend/data/`). Временная копия аудио удаляется после надёжной публикации результата или по TTL. GPU должен удалить своё временное содержимое после ACK либо по TTL; фактическое поведение GPU-сервиса требует отдельной проверки. Цитата и таймкод остаются, но серверное воспроизведение удалённого аудио не предусмотрено.
+- Контракт `TranscriptV1`/`InsightsV1` отделяет ML от приложения. Coordinator не создаёт второй job при повторной отправке того же ключа и подтверждает результат только после его сохранения. Точные поля и внутренние маршруты — в [контракте API](docs/technical/API_CONTRACT.md).
+- Для данных встречи не нужны отдельная продуктовая БД, Redis или общая файловая система между backend и GPU. Локальное `data/` необходимо сохранять при перезапусках приложения и защищать как чувствительные данные.
 
-## Prerequisites
+## Как запустить
 
-- Node.js 22 and npm
-- Python 3.12 and [uv](https://docs.astral.sh/uv/)
-- A [Supabase](https://supabase.com/dashboard) project
-- Supabase CLI and Docker Desktop only if you want the local database stack
+### Требования
 
-## 1. Configure Supabase
+- Python 3.12 и [uv](https://docs.astral.sh/uv/)
+- Node.js 22 и npm
+- Проект Supabase для входа
+- `ffprobe` из FFmpeg для проверки MP3/M4A/OGG/WebM; WAV проверяется средствами Python
+- Для **реальной обработки**: доступный GPU API команды, реализующий [внутренний контракт](docs/technical/API_CONTRACT.md), локально размещённые модели и защищённое соединение с backend
 
-Create a project, then copy these two values from **Project Settings → API**:
+### 1. Настроить вход
 
-- Project URL
-- Publishable key (the legacy `anon` key also works)
-
-Use the same project URL and publishable key in both applications. Never put a
-Supabase secret or privileged server key in a `NEXT_PUBLIC_*` variable.
-
-For a hosted project, apply the database migration:
+Создайте проект Supabase. Возьмите Project URL и Publishable key в настройках API. Для размещённого проекта примените миграции:
 
 ```bash
-npx supabase link --project-ref your-project-ref
+npx supabase link --project-ref YOUR_PROJECT_REF
 npx supabase db push
 ```
 
-In **Authentication → URL Configuration**, set the site URL to the frontend
-origin and allow the confirmation callback. For local development:
+В Supabase Authentication → URL Configuration задайте `http://localhost:3000` как Site URL и разрешите `http://localhost:3000/auth/confirm` как Redirect URL. Для локального Supabase нужны CLI и Docker; команды приведены ниже.
 
-```text
-Site URL:     http://localhost:3000
-Redirect URL: http://localhost:3000/auth/confirm
-```
-
-## 2. Create local environment files
-
-PowerShell:
-
-```powershell
-Copy-Item frontend/.env.local.example frontend/.env.local
-Copy-Item backend/.env.example backend/.env
-```
-
-Bash:
+### 2. Заполнить переменные окружения
 
 ```bash
 cp frontend/.env.local.example frontend/.env.local
 cp backend/.env.example backend/.env
 ```
 
-Replace the placeholder project URL and publishable key in both files. The root
-[`.env.example`](.env.example) lists every required variable in one place.
+В обоих файлах укажите один Supabase URL и publishable key. У frontend проверьте `NEXT_PUBLIC_API_URL=http://localhost:8000`; у backend — `FRONTEND_ORIGIN=http://localhost:3000`. Для GPU в **backend/.env** укажите `GPU_API_URL` и `GPU_API_TOKEN` вместе. Секрет GPU хранится только на backend и не должен иметь префикс `NEXT_PUBLIC_`. Если GPU недоступен, уберите обе переменные: приложение запустится, но загруженные встречи останутся в очереди. `DATA_ROOT=data` задаёт каталог результатов относительно рабочего каталога backend. Не коммитьте `.env`, записи и `data/`.
 
-## 3. Install dependencies
+На Windows скопируйте шаблоны командой `Copy-Item` и используйте `./scripts/dev.ps1` вместо `./scripts/dev.sh`.
+
+### 3. Установить зависимости и запустить
 
 ```bash
 uv sync --directory backend --locked --all-groups
 npm --prefix frontend ci
-```
-
-## 4. Start the application
-
-One command on Windows:
-
-```powershell
-./scripts/dev.ps1
-```
-
-One command on macOS or Linux:
-
-```bash
 ./scripts/dev.sh
 ```
 
-Or use two terminals:
+Откройте [сайт](http://localhost:3000), [Swagger API](http://localhost:8000/docs) и [health endpoint](http://localhost:8000/health). На `/login` создайте аккаунт, подтвердите email и войдите на `/dashboard`. Dashboard в этой версии показывает авторизацию и доступность API; встречами можно управлять через HTTP API.
+
+### 4. Проверить загрузку через API
+
+Нужен access token вошедшего пользователя Supabase и собственный аудиофайл. Пример:
 
 ```bash
-uv run --directory backend fastapi dev app/main.py --port 8000
-npm --prefix frontend run dev
+curl -X POST 'http://localhost:8000/api/v1/meetings' \
+  -H 'Authorization: Bearer YOUR_SUPABASE_ACCESS_TOKEN' \
+  -F 'audio=@meeting.wav;type=audio/wav' \
+  -F 'metadata={"title":"План запуска","meeting_date":"2026-09-23","timezone":"Asia/Almaty","participants":["Алия","Ернур"],"recording_notice_confirmed":true,"language_hint":"mixed"};type=application/json'
 ```
 
-Open:
+Ответ `202` содержит `id` и статус `queued`. Это подтверждает сохранение заявки, а не завершение ML. Запросите `GET /api/v1/meetings/{id}` с тем же Bearer token для статуса. Когда подключён совместимый GPU-сервис и результат сохранён, API выдаёт `GET /api/v1/meetings/{id}/transcript` и `/insights`. При отсутствии GPU они не станут готовыми. Чужая или несуществующая встреча не раскрывается владельцу через API.
 
-- Web app: [http://localhost:3000](http://localhost:3000)
-- FastAPI docs: [http://localhost:8000/docs](http://localhost:8000/docs)
-- Health check: [http://localhost:8000/health](http://localhost:8000/health)
+### Локальный Supabase вместо размещённого проекта
 
-## Local Supabase
-
-Docker Desktop must be running.
+При запущенном Docker:
 
 ```bash
 npx supabase start
@@ -134,74 +107,41 @@ npx supabase db lint
 npx supabase test db
 ```
 
-`supabase db reset` applies the migration and recreates the `profiles` table,
-signup trigger, and owner-only RLS policies.
+Подставьте локальный URL и ключи из вывода Supabase CLI в env-файлы.
 
-## Test everything
-
-Backend:
+## Проверки и воспроизводимость
 
 ```bash
 uv run --directory backend pytest -q
 uv run --directory backend ruff check .
 uv run --directory backend pyright
-```
-
-Frontend:
-
-```bash
 npm --prefix frontend test -- --run
 npm --prefix frontend run lint
 npm --prefix frontend run typecheck
 npm --prefix frontend run build
 ```
 
-Database:
+[CI](.github/workflows/ci.yml) выполняет эти проверки для backend и frontend. Backend-тесты используют искусственные аудиоданные и имитацию GPU: они проверяют контракт, ошибки, доступ владельца, восстановление, сохранение и очистку, но **не доказывают качество распознавания или работу физического NVIDIA-сервера**. Для этого нужны отдельные проверки на разрешённых к использованию RU, KK и mixed записях. Реальные записи и секреты не добавляются в репозиторий.
 
-```bash
-npx supabase db lint
-npx supabase test db
-```
+## Как оценивать готовность к демо
 
-## Authentication smoke test
+| Критерий жюри | Что можно проверить сейчас | Что ещё требуется для полного P0 |
+| --- | --- | --- |
+| Соответствие задаче и работоспособность | Приём записи и backend жизненного цикла встречи | Модель, GPU-сервис, интерфейс встречи, review, PDF и сквозной проход |
+| Техническая реализация | Версионированные схемы, owner scope, идемпотентность, ACK после сохранения, локальные артефакты и тесты отказов | Контрактные тесты на реальном GPU и интеграция всех компонентов |
+| README и воспроизводимость | Шаги запуска, env-шаблоны, API-пример, автоматические проверки и ограничения приведены здесь | Зафиксировать инструкции запуска GPU и контрольный демо-набор после интеграции |
+| Ценность и применимость | Проверяемая связь поручения с репликой заложена в данных | Показать реальный вывод и человеческую проверку в UI |
+| Потенциал и оригинальность | Доказательства для поручений, ревизии и архитектура без внешнего AI API предусмотрены контрактом | Реализовать review/PDF; затем расширять источники записи, контроль сроков и уведомления |
 
-1. Open `/login` and create an account with a password of at least eight
-   characters.
-2. Follow the confirmation link in the email.
-3. Confirm `/dashboard` opens and shows the protected API as online.
-4. Sign out and confirm `/dashboard` redirects back to `/login`.
-5. In Supabase Table Editor, confirm the new user has exactly one `profiles`
-   row with the same UUID.
+Перед выступлением пройдите [демо-чеклист](docs/product/DEMO_FLOW.md) на **той же сборке**, которую будете показывать. Подготовленный пример допустим только с явной меткой и не заменяет проверку модели на реальном аудио.
 
-If the dashboard says FastAPI is offline, check port `8000` and `SUPABASE_URL`.
-If the session is rejected, ensure both apps use the same Supabase project.
+## Документы и код
 
-## Project map
+- [PRD и критерии приёмки](docs/product/PRD.md)
+- [Демо-сценарий](docs/product/DEMO_FLOW.md)
+- [Технические требования](docs/technical/TRD.md)
+- [Архитектура](docs/technical/ARCHITECTURE.md)
+- [Контракт публичного и GPU API](docs/technical/API_CONTRACT.md)
+- [Backend](backend/) · [Frontend](frontend/) · [Миграции Supabase](supabase/migrations/) · [Тесты](backend/tests/)
 
-```text
-backend/                  FastAPI application and Python tests
-frontend/                 Next.js application and component tests
-supabase/migrations/      PostgreSQL schema and RLS policies
-supabase/tests/           pgTAP database contract tests
-scripts/                  Cross-platform development launchers
-.github/workflows/ci.yml  Backend and frontend CI
-docs/superpowers/         Architecture spec and implementation plan
-```
-
-## Deployment
-
-The deployment notes below describe the existing authenticated starter. The
-planned meeting MVP connects the application backend to the team's NVIDIA
-inference server over an authenticated protected connection. Results persist in
-application-local `data/`; temporary audio on both sides is deleted after result
-persistence is acknowledged, or at temporary-data expiry. No shared filesystem
-between the application and GPU server is required. This flow is not implemented yet.
-
-Deploy `frontend/` to Vercel (or another Next.js host) and `backend/` to an ASGI
-host. Configure the same Supabase project in both deployments, set
-`FRONTEND_ORIGIN` to the public frontend URL, set `NEXT_PUBLIC_API_URL` to the
-public FastAPI URL, and add the production confirmation callback to Supabase.
-
-Run `npx supabase db push` against the intended project before the first release.
-Keep CORS restricted to the real frontend origin and keep privileged keys out
-of the browser and source control.
+Детальные документы содержат целевое поведение и местами ещё описывают API встреч как планируемый; за фактическим статусом этой ревизии обращайтесь к таблице выше и к реализованным маршрутам в `/docs`.
