@@ -8,6 +8,8 @@ dependencies = [
     "fastapi[standard]",
     "httpx",
     "pydantic-settings",
+    "pypdf",
+    "reportlab",
     "supabase",
 ]
 
