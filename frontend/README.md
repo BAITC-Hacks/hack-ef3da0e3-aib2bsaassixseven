@@ -1,27 +1,45 @@
-# Hackalem Web
+# Frontend
 
-Next.js 16 interface with Supabase SSR authentication and a protected dashboard.
+Next.js App Router frontend for the meeting auto-protocol system. This initial
+commit establishes routes, module boundaries, runtime contracts, testing, and
+CI-friendly commands. It intentionally does not implement the final visual
+design yet.
+
+## Start
 
 ```bash
-npm ci
+cp .env.example .env.local
+npm install
 npm run dev
 ```
 
-Copy `.env.local.example` to `.env.local`. The browser receives only the
-Supabase project URL, publishable key, and public FastAPI URL. Never expose a
-secret or privileged server key through `NEXT_PUBLIC_*`.
+Open [http://localhost:3000](http://localhost:3000).
 
-The request proxy refreshes Supabase sessions, server pages verify claims, and
-the browser forwards the access token to FastAPI for business requests.
+## Structure
 
-Checks:
+```text
+src/app/                 Routes, layouts, metadata, global styles
+src/components/layout/   Product shell and navigation
+src/components/providers Global client-side providers
+src/components/ui/       Reusable presentation primitives
+src/features/meetings/   Meeting, participant, transcript contracts and UI
+src/features/tasks/      Assignment contracts and UI
+src/lib/api/             Transport and API-boundary helpers
+src/lib/config/          Validated runtime configuration
+src/test/                Test environment setup
+```
+
+Keep business rules in feature modules or the backend. Route files should
+compose features rather than becoming large implementation files.
+
+## Quality gates
 
 ```bash
-npm test -- --run
 npm run lint
 npm run typecheck
+npm run test
 npm run build
 ```
 
-See the [root README](../README.md) for database setup, the auth smoke test, and
-deployment instructions.
+See the repository-level `docs/PRD.md`, `docs/TRD.md`, and `AGENTS.md` before
+implementing a feature.
